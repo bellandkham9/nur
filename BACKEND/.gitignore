@@ -1,9 +1,10 @@
 # ==========================================================
-# ENVIRONNEMENT
+# ENVIRONNEMENT / SECRETS
 # ==========================================================
 
 .env
 *.env
+!.env.example
 
 .venv/
 venv/
@@ -34,13 +35,27 @@ media/
 
 celerybeat-schedule
 celerybeat-schedule-*
+celerybeat-schedule-shm
+celerybeat-schedule-wal
 
 
 # ==========================================================
-# NODE
+# NODE / NEXT.JS
 # ==========================================================
 
 node_modules/
+.next/
+out/
+.turbo/
+
+
+# ==========================================================
+# TEST / BUILD / CACHE
+# ==========================================================
+
+*.log
+.pytest_cache/
+.mypy_cache/
 
 
 # ==========================================================
@@ -57,3 +72,4 @@ node_modules/
 
 .DS_Store
 Thumbs.db
+desktop.ini
