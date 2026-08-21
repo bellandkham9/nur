@@ -169,55 +169,62 @@ WSGI_APPLICATION = "config.wsgi.application"
 # DATABASE
 # ==========================================================
 
+# ==========================================================
+# DATABASE
+# ==========================================================
+
 if os.environ.get("RENDER"):
-    DATABASES = {
 
-        "default": {
-
-            "ENGINE":
-                "django.db.backends.postgresql",
-
-            "NAME":
-                os.getenv("DB_NAME"),
-
-            "USER":
-                os.getenv("DB_USER"),
-
-            "PASSWORD":
-                os.getenv("DB_PASSWORD"),
-
-            "HOST":
-                os.getenv(
-                    "DB_HOST",
-                    "127.0.0.1",
-                ),
-
-            "PORT":
-                os.getenv(
-                    "DB_PORT",
-                    "5433",
-                ),
-            "OPTIONS": {
-                "sslmode": "disable",
-            },
-        }
-
-    }
-else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
+
+            "NAME": os.getenv("DB_NAME"),
+
+            "USER": os.getenv("DB_USER"),
+
+            "PASSWORD": os.getenv("DB_PASSWORD"),
+
+            "HOST": os.getenv(
+                "DB_HOST",
+                "127.0.0.1",
+            ),
+
+            "PORT": os.getenv(
+                "DB_PORT",
+                "5432",
+            ),
+
+            "OPTIONS": {
+                "sslmode": os.getenv(
+                    "DB_SSLMODE",
+                    "require",
+                ),
+            },
+        }
+    }
+
+else:
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+
             "NAME": "bahai_companion",
+
             "USER": "bahai_app",
+
             "PASSWORD": "1234@",
+
             "HOST": "127.0.0.1",
+
             "PORT": "5433",
+
             "OPTIONS": {
                 "sslmode": "disable",
             },
         }
     }
-
 # ==========================================================
 # PASSWORD VALIDATION
 # ==========================================================
