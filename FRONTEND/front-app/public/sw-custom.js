@@ -1,20 +1,33 @@
 /* =========================================================
-   BAHÁ'Í COMPANION — SERVICE WORKER PUSH
+   NUR / BAHÁ'Í COMPANION — SERVICE WORKER
+   ========================================================= */
+
+/*
+ * IMPORTANT :
+ * next-pwa / Workbox remplace automatiquement
+ * self.__WB_MANIFEST pendant le build.
+ */
+self.__WB_MANIFEST;
+
+const precacheManifest = self.__WB_MANIFEST;
+
+/* =========================================================
+   INSTALL
    ========================================================= */
 
 self.addEventListener("install", (event) => {
-  console.log(
-    "🔧 Service Worker Push : installation"
-  );
+  console.log("🔧 Service Worker : installation");
 
   self.skipWaiting();
 });
 
 
+/* =========================================================
+   ACTIVATE
+   ========================================================= */
+
 self.addEventListener("activate", (event) => {
-  console.log(
-    "✅ Service Worker Push : activation"
-  );
+  console.log("✅ Service Worker : activation");
 
   event.waitUntil(
     self.clients.claim()
@@ -27,168 +40,77 @@ self.addEventListener("activate", (event) => {
    ========================================================= */
 
 self.addEventListener("push", (event) => {
-
   console.log("📨 Push reçu");
 
   let data = {};
 
-
-  /* -------------------------------------------------------
-     LECTURE DU PAYLOAD
-     ------------------------------------------------------- */
-
   try {
-
     data = event.data
       ? event.data.json()
       : {};
-
   } catch (error) {
-
     console.error(
-      "❌ Impossible de lire les données Push",
+      "❌ Impossible de lire le payload Push :",
       error
     );
 
-    data = {
-      title: "Bahá'í Companion",
-
-      message:
-        event.data?.text()
-        || "Vous avez une nouvelle notification."
-    };
+    data = {};
   }
 
-
-  /* -------------------------------------------------------
-     TYPE
-     ------------------------------------------------------- */
-
-  const type =
-    data.type || "EVENT";
-
-
-  /* -------------------------------------------------------
-     TITRE
-     ------------------------------------------------------- */
-
   const title =
-    data.title || "Bahá'í Companion";
-
-
-  /* -------------------------------------------------------
-     MESSAGE
-     ------------------------------------------------------- */
-
-  const body =
-    data.message
-    || data.body
-    || "Vous avez un nouveau rappel.";
-
-
-  /* -------------------------------------------------------
-     URL
-     ------------------------------------------------------- */
-
-  const url =
-    data.url || "/";
-
-
-  /* -------------------------------------------------------
-     OPTIONS NOTIFICATION
-     ------------------------------------------------------- */
+    data.title ||
+    "Bahá'í Companion";
 
   const options = {
-
-    body,
+    body:
+      data.body ||
+      data.message ||
+      "Vous avez une nouvelle notification.",
 
     icon:
-      data.icon
-      || "/icons/icon-192x192.png",
+      data.icon ||
+      "/icons/notification.png",
 
     badge:
-      data.badge
-      || "/icons/icon-192x192.png",
+      data.badge ||
+      "/icons/notification.png",
+
+    tag:
+      data.tag ||
+      "bahai-companion",
+
+    renotify: true,
 
     data: {
-
-      url,
-
-      type,
-
-      event_id:
-        data.event_id
-        || null,
+      url:
+        data.url ||
+        "/",
 
       notification_id:
-        data.notification_id
-        || null,
+        data.notification_id ||
+        null,
 
-      event_source:
-        data.event_source
-        || null,
-
-
-      /* ================================================
-         DAILY QUOTE
-         ================================================ */
+      event_id:
+        data.event_id ||
+        null,
 
       quote_id:
-        data.quote_id
-        || null,
-
-      quote_date:
-        data.date
-        || null,
-
-      quote_moment:
-        data.moment
-        || null
-    },
-
-
-    requireInteraction:
-      Boolean(
-        data.requireInteraction
-      ),
-
-
-    vibrate:
-      data.vibrate
-      || [200, 100, 200],
-
-
-    timestamp:
-      Date.now(),
-
-
-    actions: [
-      {
-        action: "open",
-        title: "Ouvrir"
-      }
-    ]
+        data.quote_id ||
+        null
+    }
   };
 
-
-  /* -------------------------------------------------------
-     AFFICHAGE
-     ------------------------------------------------------- */
-
   event.waitUntil(
-
     self.registration.showNotification(
       title,
       options
     )
-
   );
-
 });
 
 
 /* =========================================================
-   CLIC NOTIFICATION
+   NOTIFICATION CLICK
    ========================================================= */
 
 self.addEventListener(
@@ -196,28 +118,16 @@ self.addEventListener(
   (event) => {
 
     console.log(
-      "🖱️ Notification cliquée"
+      "🔔 Notification cliquée"
     );
 
-
     event.notification.close();
-
-
-    /* -----------------------------------------------------
-       ACTION
-       ----------------------------------------------------- */
 
     const action =
       event.action;
 
-
-    /* -----------------------------------------------------
-       DONNÉES
-       ----------------------------------------------------- */
-
     const data =
       event.notification.data || {};
-
 
     /* -----------------------------------------------------
        URL DE BASE
@@ -238,12 +148,10 @@ self.addEventListener(
           ? "&"
           : "?";
 
-
       url =
         `${url}${separator}notification_id=${encodeURIComponent(
           data.notification_id
         )}`;
-
 
       console.log(
         "🔔 Notification ID transmis :",
@@ -263,12 +171,10 @@ self.addEventListener(
           ? "&"
           : "?";
 
-
       url =
         `${url}${separator}quote_id=${encodeURIComponent(
           data.quote_id
         )}`;
-
 
       console.log(
         "📖 Quote ID transmis :",
@@ -278,17 +184,40 @@ self.addEventListener(
 
 
     /* -----------------------------------------------------
+       EVENT ID
+       ----------------------------------------------------- */
+
+    if (data.event_id) {
+
+      const separator =
+        url.includes("?")
+          ? "&"
+          : "?";
+
+      url =
+        `${url}${separator}event_id=${encodeURIComponent(
+          data.event_id
+        )}`;
+
+      console.log(
+        "📅 Event ID transmis :",
+        data.event_id
+      );
+    }
+
+
+    /* -----------------------------------------------------
        ACTION OUVRIR
        ----------------------------------------------------- */
 
     if (
-      action === ""
-      || action === "open"
+      action === "" ||
+      action === "open"
     ) {
 
       event.waitUntil(
 
-        clients
+        self.clients
           .matchAll({
             type: "window",
             includeUncontrolled: true
@@ -305,8 +234,8 @@ self.addEventListener(
             ) {
 
               if (
-                "navigate" in client
-                && "focus" in client
+                "navigate" in client &&
+                "focus" in client
               ) {
 
                 return client
@@ -323,10 +252,10 @@ self.addEventListener(
                --------------------------------------------- */
 
             if (
-              clients.openWindow
+              self.clients.openWindow
             ) {
 
-              return clients.openWindow(
+              return self.clients.openWindow(
                 url
               );
 
@@ -335,7 +264,6 @@ self.addEventListener(
           })
 
       );
-
     }
 
   }
