@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -144,7 +145,7 @@ function getMonthName(date: Date) {
 // PAGE
 // ============================================================
 
-export default function CalendarPage() {
+function CalendarPageContent() {
 
   const searchParams = useSearchParams();
 
@@ -2466,4 +2467,28 @@ export default function CalendarPage() {
 
   );
 
+}
+
+export default function CalendarPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-50 pb-24">
+          <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4">
+            <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+              <div className="text-3xl">
+                📅
+              </div>
+
+              <p className="mt-3 text-sm text-slate-500">
+                Chargement du calendrier...
+              </p>
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <CalendarPageContent />
+    </Suspense>
+  );
 }
