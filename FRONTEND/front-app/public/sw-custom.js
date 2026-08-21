@@ -9,7 +9,6 @@
  */
 self.__WB_MANIFEST;
 
-const precacheManifest = self.__WB_MANIFEST;
 
 /* =========================================================
    INSTALL
