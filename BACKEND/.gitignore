@@ -23,8 +23,19 @@ __pycache__/
 # DJANGO
 # ==========================================================
 
-staticfiles/
-media/
+# staticfiles/
+# media/
+
+# ==========================================================
+# QUIZ — IMAGES
+# ==========================================================
+
+# !BACKEND/media/
+# !BACKEND/media/quiz/
+# !BACKEND/media/quiz/questions/
+# !BACKEND/media/quiz/questions/*.png
+# !BACKEND/media/quiz/questions/*.jpg
+# !BACKEND/media/quiz/questions/*.jpeg
 
 *.sqlite3
 
