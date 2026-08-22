@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "corsheaders",
 
     "rest_framework",
+    "jazzmin",
 
     # ------------------------------------------------------
     # Django
@@ -91,8 +92,148 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.quiz",
     "apps.daily_quotes",
+    
 ]
 
+
+
+# ==========================================================
+# JAZZMIN — ADMINISTRATION NUR
+# ==========================================================
+
+JAZZMIN_SETTINGS = {
+
+    # ------------------------------------------------------
+    # Branding
+    # ------------------------------------------------------
+
+    "site_title": "NUR Administration",
+    "site_header": "NUR",
+    "site_brand": "NUR",
+    "site_logo": None,
+    "login_logo": None,
+
+    "welcome_sign": "Bienvenue dans l'administration NUR",
+    "copyright": "NUR",
+
+    # ------------------------------------------------------
+    # Navigation
+    # ------------------------------------------------------
+
+    "show_sidebar": True,
+    "navigation_expanded": True,
+
+    "hide_apps": [],
+
+    "hide_models": [],
+
+    "order_with_respect_to": [
+        "accounts",
+        "quiz",
+        "daily_quotes",
+        "communities",
+        "activities",
+        "notifications",
+        "personal_events",
+        "document_imports",
+        "events",
+        "bahai_calendar",
+        "myCalendar",
+        "auth",
+        "sessions",
+    ],
+
+    # ------------------------------------------------------
+    # Icônes
+    # ------------------------------------------------------
+
+    "icons": {
+        "accounts": "fas fa-users",
+        "accounts.User": "fas fa-user",
+        "accounts.Profile": "fas fa-id-card",
+        "accounts.Permission": "fas fa-key",
+        "accounts.Role": "fas fa-user-shield",
+        "accounts.RolePermission": "fas fa-user-lock",
+
+        "quiz": "fas fa-brain",
+        "quiz.QuizCategory": "fas fa-layer-group",
+        "quiz.QuizQuestion": "fas fa-circle-question",
+        "quiz.QuizAnswer": "fas fa-list-check",
+        "quiz.QuizSession": "fas fa-gamepad",
+        "quiz.QuizUserAnswer": "fas fa-check-double",
+        "quiz.QuizProgress": "fas fa-chart-line",
+
+        "daily_quotes": "fas fa-quote-left",
+        "daily_quotes.DailyQuote": "fas fa-quote-left",
+
+        "communities": "fas fa-users",
+        "communities.Community": "fas fa-people-group",
+        "communities.CommunityMembership": "fas fa-user-group",
+
+        "activities": "fas fa-calendar-check",
+        "activities.Activity": "fas fa-calendar-day",
+        "activities.ActivityType": "fas fa-tags",
+        "activities.ActivityParticipant": "fas fa-user-check",
+
+        "notifications": "fas fa-bell",
+        "notifications.Notification": "fas fa-bell",
+        "notifications.PushSubscription": "fas fa-mobile-screen",
+
+        "personal_events": "fas fa-calendar",
+        "document_imports": "fas fa-file-import",
+        "events": "fas fa-calendar-days",
+        "bahai_calendar": "fas fa-moon",
+        "myCalendar": "fas fa-calendar-week",
+
+        "auth": "fas fa-lock",
+        "auth.User": "fas fa-user",
+        "auth.Group": "fas fa-users-cog",
+        "sessions": "fas fa-clock",
+    },
+
+    # ------------------------------------------------------
+    # Interface
+    # ------------------------------------------------------
+
+    "related_modal_active": True,
+
+    "custom_css": "admin/css/nur-admin.css",
+    "custom_js": None,
+
+    "show_ui_builder": False,
+
+    # ------------------------------------------------------
+    # Recherche
+    # ------------------------------------------------------
+
+    # ------------------------------------------------------
+    # Actions
+    # ------------------------------------------------------
+
+    "changeform_format": "horizontal_tabs",
+    "changeform_format_overrides": {
+        "quiz.QuizQuestion": "collapsible",
+        "daily_quotes.DailyQuote": "collapsible",
+    },
+
+    # ------------------------------------------------------
+    # Menu utilisateur
+    # ------------------------------------------------------
+
+    "usermenu_links": [],
+
+    # ------------------------------------------------------
+    # Liens externes
+    # ------------------------------------------------------
+
+    "topmenu_links": [
+        {
+            "name": "Voir le site",
+            "url": "/",
+            "new_window": True,
+        },
+    ],
+}
 
 # ==========================================================
 # MIDDLEWARE
@@ -130,34 +271,25 @@ ROOT_URLCONF = "config.urls"
 # ==========================================================
 
 TEMPLATES = [
-
     {
-        "BACKEND":
-            "django.template.backends.django.DjangoTemplates",
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
 
-        "DIRS": [],
+        "DIRS": [
+            BASE_DIR / "templates",
+        ],
 
         "APP_DIRS": True,
 
         "OPTIONS": {
-
             "context_processors": [
-
                 "django.template.context_processors.request",
-
                 "django.contrib.auth.context_processors.auth",
-
                 "django.contrib.messages.context_processors.messages",
-
+                "config.context_processors.nur_stats",
             ],
-
         },
-
     },
-
 ]
-
-
 # ==========================================================
 # WSGI
 # ==========================================================
@@ -173,58 +305,30 @@ WSGI_APPLICATION = "config.wsgi.application"
 # DATABASE
 # ==========================================================
 
-if os.environ.get("RENDER"):
+# ==========================================================
+# DATABASE
+# ==========================================================
 
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
 
-            "NAME": os.getenv("DB_NAME"),
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
 
-            "USER": os.getenv("DB_USER"),
-
-            "PASSWORD": os.getenv("DB_PASSWORD"),
-
-            "HOST": os.getenv(
-                "DB_HOST",
-                "127.0.0.1",
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+ 
+        "OPTIONS": {
+            "sslmode": os.getenv(
+                "DB_SSLMODE",
+                "require",
             ),
-
-            "PORT": os.getenv(
-                "DB_PORT",
-                "5432",
-            ),
-
-            "OPTIONS": {
-                "sslmode": os.getenv(
-                    "DB_SSLMODE",
-                    "require",
-                ),
-            },
-        }
+        },
     }
+}
 
-else:
-
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-
-            "NAME": "bahai_companion",
-
-            "USER": "bahai_app",
-
-            "PASSWORD": "1234@",
-
-            "HOST": "127.0.0.1",
-
-            "PORT": "5433",
-
-            "OPTIONS": {
-                "sslmode": "disable",
-            },
-        }
-    }
 # ==========================================================
 # PASSWORD VALIDATION
 # ==========================================================
@@ -408,6 +512,9 @@ STATIC_URL = "/static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 
 # ==========================================================
 # MEDIA FILES
