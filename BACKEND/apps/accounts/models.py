@@ -101,6 +101,11 @@ class Profile(models.Model):
         default='Africa/Brazzaville'
     )
 
+    country = models.CharField(
+        max_length=100,
+        blank=True
+    )
+
     birth_date = models.DateField(
         blank=True,
         null=True
@@ -125,7 +130,7 @@ class Profile(models.Model):
     def __str__(self):
         return self.display_name or self.user.username
 
-
+    
 class UserPreferences(models.Model):
     """
     Préférences de l'utilisateur connecté.
