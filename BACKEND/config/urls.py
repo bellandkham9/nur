@@ -14,6 +14,21 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from django.http import FileResponse, Http404
+from pathlib import Path
+
+
+def test_media(request):
+    file_path = Path(settings.MEDIA_ROOT) / "quiz" / "questions" / "chicago.png"
+
+    if not file_path.exists():
+        raise Http404("Image introuvable")
+
+    return FileResponse(
+        open(file_path, "rb"),
+        content_type="image/png",
+    )
+
 def media_debug(request):
     path = settings.MEDIA_ROOT / "quiz" / "questions" / "chicago.png"
 
@@ -110,6 +125,10 @@ urlpatterns = [
         ),
     ),
     path("debug-media/", media_debug),
+    path(
+    "test-media/",
+    test_media,
+),
     ]
 
 
