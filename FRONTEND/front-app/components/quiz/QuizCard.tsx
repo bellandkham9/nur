@@ -135,7 +135,7 @@ export default function QuizCard({
           CARTE PRINCIPALE
       ====================================================== */}
 
-      <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
+      <div className="overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.08)]">
 
         {/* ====================================================
             IMAGE
@@ -146,10 +146,10 @@ export default function QuizCard({
             <img
               src={question.image_url}
               alt=""
-              className="max-h-[320px] w-full object-cover"
+              className="max-h-80 w-full object-cover"
             />
 
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/30 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/30 to-transparent" />
           </div>
         )}
 
@@ -267,7 +267,7 @@ export default function QuizCard({
 
       {result && (
         <div
-          className={`overflow-hidden rounded-[1.5rem] border-2 p-5 ${
+          className={`overflow-hidden rounded-3xl border-2 p-5 ${
             result.correct
               ? "border-emerald-200 bg-emerald-50"
               : "border-red-200 bg-red-50"
