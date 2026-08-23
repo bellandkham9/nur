@@ -57,6 +57,54 @@ export async function login(
   return data;
 }
 
+
+// =====================================================
+// REGISTER
+// =====================================================
+
+export async function register(
+  username: string,
+  email: string,
+  password: string,
+  passwordConfirm: string,
+  country: string
+) {
+  const response = await fetch(
+    `${API_URL}/api/accounts/register/`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        password_confirm: passwordConfirm,
+        country,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const errorMessage =
+      data?.username?.[0] ||
+      data?.email?.[0] ||
+      data?.password?.[0] ||
+      data?.password_confirm?.[0] ||
+      data?.country?.[0] ||
+      data?.detail ||
+      data?.message ||
+      "Impossible de créer le compte.";
+
+    throw new Error(errorMessage);
+  }
+
+  return data;
+}
+
 // =====================================================
 // API FETCH AVEC REFRESH AUTOMATIQUE
 // =====================================================
