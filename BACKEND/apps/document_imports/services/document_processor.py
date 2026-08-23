@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from .event_detector import EventDetector
 from django.db import transaction
 
 from ..models import (
@@ -98,20 +98,38 @@ class DocumentProcessor:
                     result.page_count
                 )
 
-                document.status = (
-                    DocumentImport.Status.COMPLETED
-                )
-
-                document.error_message = ""
-
                 document.save(
                     update_fields=[
                         "page_count",
-                        "status",
-                        "error_message",
                         "updated_at",
                     ]
                 )
+
+            # ============================================================
+            # DÉTECTION DES ÉVÉNEMENTS
+            # ============================================================
+
+            EventDetector().analyze_document(
+                document.id
+            )
+
+            # ============================================================
+            # DOCUMENT TERMINÉ
+            # ============================================================
+
+            document.status = (
+                DocumentImport.Status.COMPLETED
+            )
+
+            document.error_message = ""
+
+            document.save(
+                update_fields=[
+                    "status",
+                    "error_message",
+                    "updated_at",
+                ]
+            )
 
             return document
 
