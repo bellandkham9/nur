@@ -7,8 +7,7 @@ import BottomNavigation from "@/components/navigation/BottomNavigation";
 import { apiFetch, getNotifications } from "@/lib/api";
 import type { CalendarEvent } from "@/types/event";
 import { Brain } from "lucide-react";
-import DailyQuoteSection
-  from "@/components/daily-quotes/DailyQuoteSection";
+import DailyQuoteSection from "@/components/daily-quotes/DailyQuoteSection";
 /* =========================================================
    TYPES
 ========================================================= */
@@ -87,30 +86,19 @@ function getCommunityName(community: number | Community): string {
 ========================================================= */
 
 export default function HomePage() {
-
   const today = new Date();
   const todayString = dateToString(today);
 
   const router = useRouter();
+
   const [authChecked, setAuthChecked] = useState(false);
-  /* =======================================================
-     ÉVÉNEMENTS
-  ======================================================= */
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
-  /* =======================================================
-     NOTIFICATIONS
-  ======================================================= */
-
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const [notificationsLoading, setNotificationsLoading] = useState(true);
-
-  /* =======================================================
-     COMMUNAUTÉS
-  ======================================================= */
 
   const [communities, setCommunities] = useState<Community[]>([]);
 
@@ -118,32 +106,24 @@ export default function HomePage() {
 
   const [communitiesLoading, setCommunitiesLoading] = useState(true);
 
-  /* =======================================================
-     CHARGEMENT DES ÉVÉNEMENTS
-  ======================================================= */
+  // =====================================================
+  // AUTHENTIFICATION
+  // =====================================================
 
-  
- useEffect(() => {
-  const token = localStorage.getItem("access_token");
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
 
-  if (!token) {
-    router.replace("/login");
-  }
-  setAuthChecked(true);
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    setAuthChecked(true);
   }, [router]);
 
-  if (!authChecked) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
-          <p className="mt-3 text-sm text-slate-500">
-            Vérification de la connexion...
-          </p>
-        </div>
-      </main>
-    );
-  }
+  // =====================================================
+  // ÉVÉNEMENTS
+  // =====================================================
 
   useEffect(() => {
     async function loadEvents() {
@@ -169,9 +149,9 @@ export default function HomePage() {
     loadEvents();
   }, []);
 
-  /* =======================================================
-     CHARGEMENT DES NOTIFICATIONS
-  ======================================================= */
+  // =====================================================
+  // NOTIFICATIONS
+  // =====================================================
 
   useEffect(() => {
     async function loadNotifications() {
@@ -199,9 +179,9 @@ export default function HomePage() {
     loadNotifications();
   }, []);
 
-  /* =======================================================
-     CHARGEMENT DES COMMUNAUTÉS
-  ======================================================= */
+  // =====================================================
+  // COMMUNAUTÉS
+  // =====================================================
 
   useEffect(() => {
     async function loadCommunities() {
@@ -241,9 +221,9 @@ export default function HomePage() {
     loadCommunities();
   }, []);
 
-  /* =======================================================
-     CALCULS
-  ======================================================= */
+  // =====================================================
+  // useMemo
+  // =====================================================
 
   const unreadCount = useMemo(() => {
     return notifications.filter(
@@ -292,9 +272,27 @@ export default function HomePage() {
     return getCommunityId(membership.community) === primaryCommunity.id;
   });
 
-  /* =======================================================
-     RENDU
-  ======================================================= */
+  // =====================================================
+  // MAINTENANT SEULEMENT : RETURN CONDITIONNEL
+  // =====================================================
+
+  if (!authChecked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+
+          <p className="mt-3 text-sm text-slate-500">
+            Vérification de la connexion...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // =====================================================
+  // RENDU NORMAL
+  // =====================================================
 
   return (
     <main className="min-h-screen bg-slate-50 pb-24">
