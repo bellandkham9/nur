@@ -27,24 +27,25 @@ export async function apiFetch(
 
   const headers = new Headers(options.headers);
 
-  // JSON automatiquement pour les requêtes avec body
-  if (
-    options.body &&
-    !headers.has("Content-Type")
-  ) {
-    headers.set(
-      "Content-Type",
-      "application/json"
-    );
-  }
+// JSON automatiquement pour les requêtes avec body
+if (
+  options.body &&
+  !(options.body instanceof FormData) &&
+  !headers.has("Content-Type")
+) {
+  headers.set(
+    "Content-Type",
+    "application/json"
+  );
+}
 
-  // JWT
-  if (token) {
-    headers.set(
-      "Authorization",
-      `Bearer ${token}`
-    );
-  }
+// JWT
+if (token) {
+  headers.set(
+    "Authorization",
+    `Bearer ${token}`
+  );
+}
 
   const url = `${API_URL}${endpoint}`;
 
