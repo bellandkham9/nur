@@ -87,33 +87,12 @@ function getCommunityName(community: number | Community): string {
 ========================================================= */
 
 export default function HomePage() {
+
   const today = new Date();
   const todayString = dateToString(today);
 
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
-useEffect(() => {
-  const token = localStorage.getItem("access_token");
-
-  if (!token) {
-    router.replace("/login");
-  }
-  setAuthChecked(true);
-  }, [router]);
-
-  if (!authChecked) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
-          <p className="mt-3 text-sm text-slate-500">
-            Vérification de la connexion...
-          </p>
-        </div>
-      </main>
-    );
-  }
-
   /* =======================================================
      ÉVÉNEMENTS
   ======================================================= */
@@ -142,6 +121,29 @@ useEffect(() => {
   /* =======================================================
      CHARGEMENT DES ÉVÉNEMENTS
   ======================================================= */
+
+  
+ useEffect(() => {
+  const token = localStorage.getItem("access_token");
+
+  if (!token) {
+    router.replace("/login");
+  }
+  setAuthChecked(true);
+  }, [router]);
+
+  if (!authChecked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+          <p className="mt-3 text-sm text-slate-500">
+            Vérification de la connexion...
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   useEffect(() => {
     async function loadEvents() {
