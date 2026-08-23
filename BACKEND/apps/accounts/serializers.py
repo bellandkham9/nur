@@ -107,10 +107,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             display_name=user.username,
         )
 
-        UserPreferences.objects.create(
-            user=user
-        )
-
         return user
 
 
