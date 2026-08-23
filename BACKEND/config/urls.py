@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
+from pathlib import Path
+from django.http import JsonResponse
 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -11,6 +13,17 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+
+def media_debug(request):
+    path = settings.MEDIA_ROOT / "quiz" / "questions" / "chicago.png"
+
+    return JsonResponse({
+        "DEBUG": settings.DEBUG,
+        "BASE_DIR": str(settings.BASE_DIR),
+        "MEDIA_ROOT": str(settings.MEDIA_ROOT),
+        "file_exists": path.exists(),
+        "file_path": str(path),
+    })
 
 
 urlpatterns = [
@@ -96,7 +109,9 @@ urlpatterns = [
             "apps.daily_quotes.urls"
         ),
     ),
+    path("debug-media/", media_debug),
     ]
+
 
 urlpatterns += static(
     settings.MEDIA_URL,
