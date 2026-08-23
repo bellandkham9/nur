@@ -2,6 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from pathlib import Path
 from django.http import JsonResponse
+from django.urls import include, path, re_path
 
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -18,28 +19,15 @@ from django.http import FileResponse, Http404
 from pathlib import Path
 
 
-def test_media(request):
-    file_path = Path(settings.MEDIA_ROOT) / "quiz" / "questions" / "chicago.png"
+def serve_media(request, path):
+    file_path = Path(settings.MEDIA_ROOT) / path
 
-    if not file_path.exists():
-        raise Http404("Image introuvable")
+    if not file_path.exists() or not file_path.is_file():
+        raise Http404("Fichier média introuvable")
 
     return FileResponse(
         open(file_path, "rb"),
-        content_type="image/png",
     )
-
-def media_debug(request):
-    path = settings.MEDIA_ROOT / "quiz" / "questions" / "chicago.png"
-
-    return JsonResponse({
-        "DEBUG": settings.DEBUG,
-        "BASE_DIR": str(settings.BASE_DIR),
-        "MEDIA_ROOT": str(settings.MEDIA_ROOT),
-        "file_exists": path.exists(),
-        "file_path": str(path),
-    })
-
 
 urlpatterns = [
 
@@ -124,11 +112,11 @@ urlpatterns = [
             "apps.daily_quotes.urls"
         ),
     ),
-    path("debug-media/", media_debug),
-    path(
-    "test-media/",
-    test_media,
-),
+
+    re_path(
+        r"^media/(?P<path>.*)$",
+        serve_media,
+    ),
     ]
 
 
