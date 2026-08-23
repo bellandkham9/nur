@@ -155,13 +155,6 @@ export default function LoginPage() {
                 Créer un compte
               </Link>
             </p>
-
-            <Link
-              href="/"
-              className="block text-sm font-medium text-slate-500 transition hover:text-emerald-600"
-            >
-              ← Retour à l'accueil
-            </Link>
           </div>
         </div>
       </div>
