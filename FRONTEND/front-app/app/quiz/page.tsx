@@ -423,11 +423,7 @@ export default function QuizPage() {
               className="group relative w-full overflow-hidden rounded-2xl bg-emerald-500 px-6 py-5 text-lg font-black text-white shadow-[0_6px_0_#159447] transition-all duration-150 hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-[0_8px_0_#159447] active:translate-y-1 active:shadow-[0_3px_0_#159447]"
             >
               <span className="relative z-10 flex items-center justify-center gap-3">
-                <span>Commencer le quiz</span>
-
-                <span className="text-2xl transition-transform duration-200 group-hover:translate-x-1">
-                  🚀
-                </span>
+                <span>Commencer</span>
               </span>
 
               {/* shine */}
@@ -435,14 +431,6 @@ export default function QuizPage() {
               <span className="absolute inset-y-0 -left-20 w-16 rotate-12 bg-white/20 blur-sm transition-all duration-700 group-hover:left-[120%]" />
             </button>
           </div>
-          {/* =================================================
-              PETITE INFO
-          ================================================== */}
-
-          <p className="mt-5 text-center text-xs font-medium text-slate-400">
-            💡 Prends ton temps, lis attentivement chaque question et amuse-toi
-            !
-          </p>
         </div>
       </div>
 
