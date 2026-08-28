@@ -420,13 +420,13 @@ def process_notifications_cron(request):
                 status=403,
             )
 
-        task = process_notifications_task.delay()
+        result = process_notifications_task()
 
         return Response(
             {
                 "success": True,
-                "message": "Traitement des notifications lancé.",
-                "task_id": task.id,
+                "message": "Notifications traitées.",
+                "result": result,
             },
-            status=202,
+            status=status.HTTP_200_OK,
         )    
