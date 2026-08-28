@@ -1,8 +1,10 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
     NotificationViewSet,
     PushSubscriptionViewSet,
+    process_notifications_cron,
 )
 
 
@@ -21,4 +23,10 @@ router.register(
 )
 
 
-urlpatterns = router.urls
+urlpatterns = [
+    path(
+        "process/",
+        process_notifications_cron,
+        name="notifications-process-cron",
+    ),
+] + router.urls

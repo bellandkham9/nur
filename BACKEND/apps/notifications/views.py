@@ -4,6 +4,12 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+
+from .tasks import process_notifications_task
+
 
 from .models import Notification, PushSubscription
 from .serializers import (
@@ -373,3 +379,54 @@ class PushSubscriptionViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    # ==========================================================
+    # CRON — TRAITEMENT DES NOTIFICATIONS
+    # ==========================================================
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def process_notifications_cron(request):
+        """
+        Endpoint appelé par cron-job.org.
+
+        Le secret envoyé dans le header X-Cron-Secret
+        permet d'empêcher les appels non autorisés.
+        """
+
+        cron_secret = request.headers.get("X-Cron-Secret")
+
+        expected_secret = getattr(
+            settings,
+            "CRON_SECRET",
+            "",
+        )
+
+        if not expected_secret:
+            return Response(
+                {
+                    "success": False,
+                    "detail": "CRON_SECRET non configuré.",
+                },
+                status=500,
+            )
+
+        if cron_secret != expected_secret:
+            return Response(
+                {
+                    "success": False,
+                    "detail": "Non autorisé.",
+                },
+                status=403,
+            )
+
+        task = process_notifications_task.delay()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Traitement des notifications lancé.",
+                "task_id": task.id,
+            },
+            status=202,
+        )    
