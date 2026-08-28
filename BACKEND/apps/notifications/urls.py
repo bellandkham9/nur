@@ -10,16 +10,20 @@ from .views import (
 
 router = DefaultRouter()
 
-router.register(
-    r"",
-    NotificationViewSet,
-    basename="notification",
-)
+# IMPORTANT :
+# Les routes spécifiques doivent être déclarées
+# avant la route générale des notifications.
 
 router.register(
     r"push-subscriptions",
     PushSubscriptionViewSet,
     basename="push-subscription",
+)
+
+router.register(
+    r"",
+    NotificationViewSet,
+    basename="notification",
 )
 
 
@@ -29,4 +33,6 @@ urlpatterns = [
         process_notifications_cron,
         name="notifications-process-cron",
     ),
-] + router.urls
+]
+
+urlpatterns += router.urls
