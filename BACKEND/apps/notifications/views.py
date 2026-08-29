@@ -7,7 +7,9 @@ from rest_framework.response import Response
 from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-
+from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from .tasks import process_notifications_task
 
 
@@ -430,3 +432,84 @@ def process_notifications_cron(request):
             },
             status=status.HTTP_200_OK,
         )    
+
+
+# ============================================================
+# TRAITEMENT AUTOMATIQUE DES NOTIFICATIONS
+# ============================================================
+
+@csrf_exempt
+def process_notifications_internal(request):
+    """
+    Endpoint interne appelé par le scheduler externe.
+
+    Il déclenche exactement le même moteur que :
+
+        python manage.py process_notifications
+
+    L'accès est protégé par X-Notification-Secret.
+    """
+
+    if request.method != "POST":
+        return JsonResponse(
+            {
+                "success": False,
+                "detail": "Méthode non autorisée.",
+            },
+            status=405,
+        )
+
+    secret = request.headers.get("X-Notification-Secret")
+
+    expected_secret = getattr(
+        settings,
+        "NOTIFICATION_PROCESS_SECRET",
+        None,
+    )
+
+    if not expected_secret:
+        return JsonResponse(
+            {
+                "success": False,
+                "detail": "Secret de traitement non configuré.",
+            },
+            status=500,
+        )
+
+    if not secret or secret != expected_secret:
+        return JsonResponse(
+            {
+                "success": False,
+                "detail": "Non autorisé.",
+            },
+            status=403,
+        )
+
+    try:
+        from apps.notifications.management.commands.process_notifications import (
+            Command,
+        )
+
+        Command().handle()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Notifications traitées.",
+            },
+            status=200,
+        )
+
+    except Exception as exc:
+        print(
+            f"❌ Erreur traitement automatique "
+            f"des notifications : {exc}"
+        )
+
+        return JsonResponse(
+            {
+                "success": False,
+                "detail": "Erreur lors du traitement des notifications.",
+            },
+            status=500,
+        )

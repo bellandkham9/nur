@@ -5,6 +5,7 @@ from .views import (
     NotificationViewSet,
     PushSubscriptionViewSet,
     process_notifications_cron,
+    process_notifications_internal,
 )
 
 
@@ -32,6 +33,11 @@ urlpatterns = [
         "process/",
         process_notifications_cron,
         name="notifications-process-cron",
+    ),
+    path(
+        "internal/process/",
+        process_notifications_internal,
+        name="process-notifications-internal",
     ),
 ]
 
