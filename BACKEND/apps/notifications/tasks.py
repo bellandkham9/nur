@@ -101,6 +101,7 @@ def process_notifications_task():
             )
 
     return {
+        "found": notifications.count(),
         "processed": processed,
         "executed_at": now.isoformat(),
     }
