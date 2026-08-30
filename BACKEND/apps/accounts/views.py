@@ -1,30 +1,19 @@
-from django.shortcuts import render
-
-# Create your views here.
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import UserPreferences
-from rest_framework.permissions import AllowAny
-
 from .serializers import (
     RegisterSerializer,
     UserPreferencesSerializer,
 )
 
-from .models import UserPreferences
-
 
 class RegisterView(APIView):
-
-    permission_classes = [
-        AllowAny,
-    ]
+    permission_classes = [AllowAny]
 
     def post(self, request):
-
         serializer = RegisterSerializer(
             data=request.data
         )
@@ -43,27 +32,25 @@ class RegisterView(APIView):
                     "username": user.username,
                     "email": user.email,
                     "country": user.profile.country,
-                }
+                },
             },
             status=status.HTTP_201_CREATED,
         )
 
 
-
-
 class UserPreferencesView(APIView):
-
-    permission_classes = [
-        IsAuthenticated,
-    ]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """
-        Récupère les préférences de l'utilisateur connecté.
+        Récupère les informations de l'utilisateur
+        connecté ainsi que ses préférences.
         """
 
-        preferences, created = UserPreferences.objects.get_or_create(
-            user=request.user
+        preferences, created = (
+            UserPreferences.objects.get_or_create(
+                user=request.user
+            )
         )
 
         serializer = UserPreferencesSerializer(
@@ -71,7 +58,14 @@ class UserPreferencesView(APIView):
         )
 
         return Response(
-            serializer.data,
+            {
+                "user": {
+                    "id": request.user.id,
+                    "username": request.user.username,
+                    "email": request.user.email,
+                },
+                "preferences": serializer.data,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -80,8 +74,10 @@ class UserPreferencesView(APIView):
         Modifie les préférences de l'utilisateur connecté.
         """
 
-        preferences, created = UserPreferences.objects.get_or_create(
-            user=request.user
+        preferences, created = (
+            UserPreferences.objects.get_or_create(
+                user=request.user
+            )
         )
 
         serializer = UserPreferencesSerializer(
@@ -97,6 +93,13 @@ class UserPreferencesView(APIView):
         serializer.save()
 
         return Response(
-            serializer.data,
+            {
+                "user": {
+                    "id": request.user.id,
+                    "username": request.user.username,
+                    "email": request.user.email,
+                },
+                "preferences": serializer.data,
+            },
             status=status.HTTP_200_OK,
         )

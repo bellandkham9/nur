@@ -112,7 +112,10 @@ urlpatterns = [
             "apps.daily_quotes.urls"
         ),
     ),
-
+    path(
+    "api/analytics/",
+        include("apps.analytics.urls"),
+    ),
     re_path(
         r"^media/(?P<path>.*)$",
         serve_media,

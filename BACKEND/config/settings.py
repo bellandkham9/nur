@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.quiz",
     "apps.daily_quotes",
+    "apps.analytics"
     
 ]
 
