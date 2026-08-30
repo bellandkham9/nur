@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import PushNotificationManager from "@/components/PushNotificationManager";
+import AnalyticsTracker from "@/components/analytics/AnalyticsTracker";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 import "./globals.css";
 
@@ -27,8 +29,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <PushNotificationManager />
+        <AnalyticsTracker />
 
-        {children}
+        <AuthGuard>
+          {children}
+        </AuthGuard>
       </body>
     </html>
   );

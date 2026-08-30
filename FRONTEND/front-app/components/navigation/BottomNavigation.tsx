@@ -20,11 +20,11 @@ const navigationItems: NavigationItem[] = [
     icon: "📅",
     label: "Calendrier",
   },
-  {
-    href: "/communities",
-    icon: "👥",
-    label: "Communautés",
-  },
+  // {
+  //   href: "/communities",
+  //   icon: "👥",
+  //   label: "Communautés",
+  // },
   {
     href: "/notifications",
     icon: "🔔",

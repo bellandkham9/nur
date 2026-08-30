@@ -43,16 +43,21 @@ export async function login(
   }
 
   localStorage.setItem(
-    "access_token",
-    data.access
-  );
+  "access_token",
+  data.access
+);
 
-  localStorage.setItem(
-    "refresh_token",
-    data.refresh
-  );
+localStorage.setItem(
+  "refresh_token",
+  data.refresh
+);
 
-  console.log("✅ Connexion réussie.");
+// Cookie utilisé par le middleware Next.js
+document.cookie = `access_token=${encodeURIComponent(
+  data.access
+)}; path=/; max-age=${60 * 60}; SameSite=Lax`;
+
+console.log("✅ Connexion réussie.");
 
   return data;
 }
@@ -214,6 +219,10 @@ export async function apiFetch(
             newAccessToken
         );
 
+        document.cookie = `access_token=${encodeURIComponent(
+          newAccessToken
+        )}; path=/; max-age=${60 * 60}; SameSite=Lax`;
+
         if (refreshData.refresh) {
             localStorage.setItem(
             "refresh_token",
@@ -291,6 +300,13 @@ export function logout() {
   localStorage.removeItem(
     "refresh_token"
   );
+
+  // Suppression du cookie utilisé
+  // par le middleware
+  document.cookie =
+    "access_token=; path=/; max-age=0; SameSite=Lax";
+
+  window.location.href = "/login";
 }
 
 // =====================================================

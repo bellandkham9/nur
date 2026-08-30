@@ -2,7 +2,9 @@
 
 import BottomNavigation from "@/components/navigation/BottomNavigation";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { getUserPreferences } from "@/lib/api";
 
 type NotificationItem = {
 id: number;
@@ -16,6 +18,28 @@ status: string;
 read_at: string | null;
 };
 
+
+const [username, setUsername] = useState("Utilisateur");
+
+useEffect(() => {
+  async function loadUser() {
+    try {
+      const data = await getUserPreferences();
+
+      setUsername(
+        data?.user?.username || "Utilisateur"
+      );
+    } catch (error) {
+      console.error(
+        "❌ Impossible de récupérer l'utilisateur :",
+        error
+      );
+    }
+  }
+
+  loadUser();
+}, []);
+
 export default function ProfilePage() {
 const [notifications] = useState<NotificationItem[]>([]);
 
@@ -27,7 +51,6 @@ return notifications.filter(
 
 return ( <main className="min-h-screen bg-slate-50 pb-24">
 
-```
   {/* =====================================================
       HEADER
   ===================================================== */}
@@ -85,7 +108,7 @@ return ( <main className="min-h-screen bg-slate-50 pb-24">
           </p>
 
           <h2 className="mt-1 truncate text-xl font-bold text-slate-900">
-            Mon profil
+            {username}
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">

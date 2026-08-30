@@ -441,7 +441,7 @@ export default function HomePage() {
             MA COMMUNAUTÉ
         ================================================= */}
 
-        <section>
+        {/* <section>
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">
@@ -529,7 +529,7 @@ export default function HomePage() {
               </div>
             </div>
           )}
-        </section>
+        </section> */}
 
         {/* =================================================
             ÉVÉNEMENTS À VÉRIFIER
@@ -597,6 +597,22 @@ export default function HomePage() {
           </section>
         )}
 
+        <Link
+          href="/analytics"
+          className="flex items-center gap-3 rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md"
+        >
+          <span className="text-2xl">📈</span>
+
+          <div>
+            <p className="font-semibold">
+              Analytics
+            </p>
+
+            <p className="text-sm text-gray-500">
+              Statistiques de l'application
+            </p>
+          </div>
+        </Link>
         {/* =================================================
             NOTIFICATIONS
         ================================================= */}
@@ -677,7 +693,7 @@ export default function HomePage() {
               <p className="mt-1 text-xs text-slate-500">Voir mes activités</p>
             </Link>
 
-            <Link
+            {/* <Link
               href="/communities"
               className="rounded-2xl bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
@@ -688,7 +704,7 @@ export default function HomePage() {
               <p className="mt-1 text-xs text-slate-500">
                 Rejoindre et participer
               </p>
-            </Link>
+            </Link> */}
 
             <Link
               href="/documents"
