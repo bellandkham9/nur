@@ -1,26 +1,26 @@
 /* =========================================================
    NUR / BAHÁ'Í COMPANION
-   SERVICE WORKER — OFFLINE GLOBAL + PUSH
+   SERVICE WORKER
+   OFFLINE + PUSH + PROTECTION CACHE PRIVÉ
    ========================================================= */
 
 /*
  * IMPORTANT
  * ---------------------------------------------------------
- * next-pwa / Workbox remplace automatiquement
- * self.__WB_MANIFEST pendant le build.
- *
- * Le Service Worker doit donc rester compatible
- * avec le manifeste généré par Workbox.
+ * next-pwa / Workbox injecte automatiquement le manifeste
+ * dans self.__WB_MANIFEST lors du build.
  */
 
 self.__WB_MANIFEST;
 
 /* =========================================================
-   CONFIGURATION DES CACHES
+   VERSION DES CACHES
    ========================================================= */
 
-const STATIC_CACHE = "nur-static-v2";
-const API_CACHE = "nur-api-v2";
+const SW_VERSION = "v3";
+
+const STATIC_CACHE = `nur-static-${SW_VERSION}`;
+const API_CACHE = `nur-api-${SW_VERSION}`;
 
 const OFFLINE_URL = "/offline";
 
@@ -28,87 +28,94 @@ const OFFLINE_URL = "/offline";
    ROUTES PUBLIQUES
    ========================================================= */
 
-/*
- * Ces pages peuvent être mises en cache.
- *
- * Les autres pages sont considérées comme privées
- * et ne doivent jamais être stockées dans le cache
- * par le Service Worker.
- */
-
-const PUBLIC_PAGE_PATHS = ["/", "/login", "/register", "/offline"];
+const PUBLIC_PAGE_PATHS = [
+  "/",
+  "/login",
+  "/register",
+  "/offline",
+];
 
 /* =========================================================
-   VÉRIFICATION ROUTE PUBLIQUE
+   API PUBLIQUES
+   ========================================================= */
+
+/*
+ * IMPORTANT
+ * ---------------------------------------------------------
+ * On ne met ici QUE des données réellement publiques.
+ *
+ * NE PAS AJOUTER :
+ *
+ * /api/token/
+ * /api/token/refresh/
+ * /api/events/
+ * /api/calendar/
+ * /api/notifications/
+ * /api/communities/
+ * /api/profile/
+ * /api/settings/
+ * /api/analytics/
+ *
+ * sauf si l'endpoint est explicitement démontré comme
+ * totalement indépendant de l'utilisateur connecté.
+ */
+
+const CACHEABLE_PUBLIC_APIS = [
+  "/api/bahai-calendar/",
+  "/api/daily-quotes/",
+];
+
+/* =========================================================
+   UTILITAIRES
    ========================================================= */
 
 function isPublicPage(url) {
   return PUBLIC_PAGE_PATHS.some(
     (path) =>
       url.pathname === path ||
-      (path !== "/" && url.pathname.startsWith(`${path}/`)),
+      (path !== "/" &&
+        url.pathname.startsWith(`${path}/`)),
   );
 }
 
-/* =========================================================
-   API PUBLIQUES CACHEABLES
-   ========================================================= */
+function isPublicApi(url) {
+  if (url.origin !== self.location.origin) {
+    return false;
+  }
 
-/*
- * IMPORTANT :
- *
- * On ne met volontairement PAS ici :
- *
- * - /api/token/
- * - /api/token/refresh/
- * - /api/accounts/
- * - /api/notifications/
- * - /api/communities/memberships/
- * - /api/analytics/
- * - tout endpoint contenant des données privées.
- *
- * Ces données peuvent dépendre de l'utilisateur connecté.
- */
-
-const CACHEABLE_API_PATTERNS = [
-  "/api/bahai-calendar/",
-  "/api/calendar/",
-  "/api/events/",
-  "/api/daily-quotes/",
-];
+  return CACHEABLE_PUBLIC_APIS.some((pattern) =>
+    url.pathname.startsWith(pattern),
+  );
+}
 
 /* =========================================================
    INSTALL
    ========================================================= */
 
 self.addEventListener("install", (event) => {
-  console.log("🔧 NUR Service Worker : installation");
-
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then(async (cache) => {
-      try {
-        /*
-         * On pré-cache uniquement la page
-         * de secours.
-         *
-         * Les autres ressources seront
-         * mises en cache au fur et à mesure
-         * de leur utilisation.
-         */
-
-        await cache.add(OFFLINE_URL);
-
-        console.log("✅ Page offline mise en cache");
-      } catch (error) {
-        console.error("❌ Impossible de mettre en cache /offline :", error);
-      }
-    }),
+  console.log(
+    "🔧 NUR Service Worker : installation",
+    SW_VERSION,
   );
 
-  /*
-   * Active immédiatement le nouveau
-   * Service Worker.
-   */
+  event.waitUntil(
+    caches
+      .open(STATIC_CACHE)
+      .then(async (cache) => {
+        try {
+          await cache.add(OFFLINE_URL);
+
+          console.log(
+            "✅ Page offline mise en cache",
+          );
+        } catch (error) {
+          console.error(
+            "❌ Impossible de mettre /offline en cache :",
+            error,
+          );
+        }
+      }),
+  );
 
   self.skipWaiting();
 });
@@ -118,75 +125,51 @@ self.addEventListener("install", (event) => {
    ========================================================= */
 
 self.addEventListener("activate", (event) => {
-  console.log("✅ NUR Service Worker : activation");
+  console.log(
+    "✅ NUR Service Worker : activation",
+    SW_VERSION,
+  );
 
   event.waitUntil(
     caches
       .keys()
-
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
             .filter((cacheName) => {
-              /*
-               * On supprime uniquement
-               * les anciens caches NUR.
-               */
-
               return (
                 cacheName.startsWith("nur-") &&
                 cacheName !== STATIC_CACHE &&
                 cacheName !== API_CACHE
               );
             })
-
             .map((cacheName) => {
-              console.log("🗑️ Suppression ancien cache :", cacheName);
+              console.log(
+                "🗑️ Suppression ancien cache :",
+                cacheName,
+              );
 
               return caches.delete(cacheName);
             }),
         );
       })
-
-      .then(() => {
-        /*
-         * Le nouveau SW prend immédiatement
-         * le contrôle des pages ouvertes.
-         */
-
-        return self.clients.claim();
-      }),
+      .then(() => self.clients.claim()),
   );
 });
 
 /* =========================================================
-   UTILITAIRE — API CACHEABLE
-   ========================================================= */
-
-function isCacheableApi(url) {
-  if (url.origin !== self.location.origin) {
-    return false;
-  }
-
-  return CACHEABLE_API_PATTERNS.some((pattern) =>
-    url.pathname.startsWith(pattern),
-  );
-}
-
-/* =========================================================
-   UTILITAIRE — RÉPONSE OFFLINE API
+   RÉPONSE OFFLINE API
    ========================================================= */
 
 function createOfflineApiResponse() {
   return new Response(
     JSON.stringify({
       offline: true,
-      message: "Données indisponibles hors connexion.",
+      message:
+        "Données indisponibles hors connexion.",
     }),
-
     {
       status: 503,
-
       headers: {
         "Content-Type": "application/json",
       },
@@ -198,25 +181,14 @@ function createOfflineApiResponse() {
    FETCH
    ========================================================= */
 
-/*
- * UN SEUL fetch listener.
- *
- * Il gère :
- *
- * 1. API publiques
- * 2. navigation
- * 3. ressources statiques
- *
- * Les requêtes POST/PUT/PATCH/DELETE
- * passent directement au réseau.
- */
-
 self.addEventListener("fetch", (event) => {
   const request = event.request;
 
-  /* =====================================================
-       SEULEMENT GET
-       ===================================================== */
+  /*
+   * -------------------------------------------------------
+   * Seulement GET
+   * -------------------------------------------------------
+   */
 
   if (request.method !== "GET") {
     return;
@@ -224,78 +196,87 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  /* =====================================================
-       SEULEMENT NOTRE PROPRE DOMAINE
-       ===================================================== */
+  /*
+   * -------------------------------------------------------
+   * Seulement notre domaine
+   * -------------------------------------------------------
+   */
 
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  /* =====================================================
-       API
-       ===================================================== */
+  /* =======================================================
+     NEXT.JS INTERNAL
+     ======================================================= */
+
+  /*
+   * IMPORTANT
+   * -------------------------------------------------------
+   * On ne touche PAS aux requêtes _next.
+   *
+   * Cela évite de mettre accidentellement en cache :
+   *
+   * - RSC
+   * - Flight requests
+   * - données de navigation
+   * - réponses dépendant de l'utilisateur
+   */
+
+  if (url.pathname.startsWith("/_next/")) {
+    return;
+  }
+
+  /* =======================================================
+     API
+     ======================================================= */
 
   if (url.pathname.startsWith("/api/")) {
     /*
-     * Seules les APIs publiques
-     * explicitement autorisées
-     * sont mises en cache.
+     * Si l'API n'est pas explicitement publique :
+     *
+     * → réseau uniquement
+     * → aucun cache
      */
 
-    if (!isCacheableApi(url)) {
+    if (!isPublicApi(url)) {
       return;
     }
+
+    /*
+     * API PUBLIQUE
+     *
+     * Network First
+     */
 
     event.respondWith(
       caches
         .open(API_CACHE)
-
         .then(async (cache) => {
           try {
-            /*
-             * NETWORK FIRST
-             *
-             * Internet disponible :
-             * on récupère toujours
-             * les données fraîches.
-             */
-
-            const response = await fetch(request);
-
-            /*
-             * On ne met en cache
-             * que les réponses valides.
-             */
+            const response =
+              await fetch(request);
 
             if (response.ok) {
-              await cache.put(request, response.clone());
+              await cache.put(
+                request,
+                response.clone(),
+              );
             }
 
             return response;
           } catch (error) {
-            console.log("📴 API hors ligne :", url.pathname);
+            console.log(
+              "📴 API publique hors ligne :",
+              url.pathname,
+            );
 
-            /*
-             * Internet indisponible :
-             * on cherche les dernières
-             * données connues.
-             */
-
-            const cached = await cache.match(request);
+            const cached =
+              await cache.match(request);
 
             if (cached) {
-              console.log(
-                "💾 Données API récupérées depuis le cache :",
-                url.pathname,
-              );
-
               return cached;
             }
-
-            /*
-             * Rien dans le cache.
-             */
 
             return createOfflineApiResponse();
           }
@@ -305,95 +286,76 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  /* =====================================================
-   NAVIGATION
-===================================================== */
+  /* =======================================================
+     NAVIGATION
+     ======================================================= */
 
   if (request.mode === "navigate") {
     /*
-     * ===================================================
-     * ROUTES PRIVÉES
-     * ===================================================
-     *
-     * IMPORTANT :
-     *
-     * Les pages privées ne doivent jamais être mises
-     * en cache par notre Service Worker.
-     *
-     * Cela évite qu'une ancienne page comme :
-     *
-     * /profile
-     * /notifications
-     * /settings
-     *
-     * soit accessible depuis le cache après déconnexion.
+     * =====================================================
+     * ROUTE PRIVÉE
+     * =====================================================
      */
 
     if (!isPublicPage(url)) {
+      /*
+       * RÈGLE DE SÉCURITÉ ABSOLUE :
+       *
+       * On ne cherche JAMAIS la page privée dans un cache.
+       */
+
       event.respondWith(
-        fetch(request).catch(() => {
+        fetch(request).catch(async () => {
+          console.log(
+            "🔐 Route privée indisponible hors ligne :",
+            url.pathname,
+          );
+
           /*
-           * Pas de réseau.
+           * Une page privée ne doit jamais être servie
+           * depuis le cache.
            *
-           * On ne cherche PAS dans le cache.
-           *
-           * On affiche uniquement la page offline.
+           * On affiche uniquement /offline.
            */
 
-          return caches
-            .match(OFFLINE_URL)
+          const offlinePage =
+            await caches.match(OFFLINE_URL);
 
-            .then((offlinePage) => {
-              if (offlinePage) {
-                return offlinePage;
-              }
+          if (offlinePage) {
+            return offlinePage;
+          }
 
-              return new Response(
-                `
+          return new Response(
+            `
               <!DOCTYPE html>
-
               <html lang="fr">
-
                 <head>
-
                   <meta charset="UTF-8">
-
                   <meta
                     name="viewport"
                     content="width=device-width, initial-scale=1"
                   >
-
-                  <title>
-                    Bahá'í Companion
-                  </title>
-
+                  <title>Hors connexion</title>
                 </head>
 
                 <body>
-
-                  <h1>
-                    Connexion requise
-                  </h1>
+                  <h1>Connexion requise</h1>
 
                   <p>
                     Cette page nécessite une connexion
                     Internet et une authentification.
                   </p>
-
                 </body>
-
               </html>
-              `,
-
-                {
-                  status: 503,
-
-                  headers: {
-                    "Content-Type": "text/html; charset=utf-8",
-                  },
-                },
-              );
-            });
+            `,
+            {
+              status: 503,
+              headers: {
+                "Content-Type":
+                  "text/html; charset=utf-8",
+              },
+            },
+          );
         }),
       );
 
@@ -401,105 +363,53 @@ self.addEventListener("fetch", (event) => {
     }
 
     /*
-     * ===================================================
-     * ROUTES PUBLIQUES
-     * ===================================================
+     * =====================================================
+     * ROUTE PUBLIQUE
+     * =====================================================
+     *
+     * Les pages publiques peuvent être récupérées
+     * depuis le cache.
      */
 
     event.respondWith(
       fetch(request)
         .then((response) => {
-          /*
-           * On met en cache uniquement les pages publiques.
-           */
-
           if (response.ok) {
-            const responseClone = response.clone();
+            const clone =
+              response.clone();
 
             caches
               .open(STATIC_CACHE)
-
-              .then((cache) => {
-                return cache.put(request, responseClone);
-              });
+              .then((cache) =>
+                cache.put(request, clone),
+              )
+              .catch(() => {});
           }
 
           return response;
         })
-
         .catch(async () => {
-          console.log("📴 Navigation publique hors ligne :", url.pathname);
-
-          /*
-           * 1. Page publique exacte.
-           */
-
-          const cachedPage = await caches.match(request);
+          const cachedPage =
+            await caches.match(request);
 
           if (cachedPage) {
-            console.log(
-              "💾 Page publique récupérée depuis le cache :",
-              url.pathname,
-            );
-
             return cachedPage;
           }
 
-          /*
-           * 2. Page offline.
-           */
-
-          const offlinePage = await caches.match(OFFLINE_URL);
+          const offlinePage =
+            await caches.match(OFFLINE_URL);
 
           if (offlinePage) {
             return offlinePage;
           }
 
-          /*
-           * 3. Dernier fallback.
-           */
-
           return new Response(
-            `
-          <!DOCTYPE html>
-
-          <html lang="fr">
-
-            <head>
-
-              <meta charset="UTF-8">
-
-              <meta
-                name="viewport"
-                content="width=device-width, initial-scale=1"
-              >
-
-              <title>
-                Bahá'í Companion
-              </title>
-
-            </head>
-
-            <body>
-
-              <h1>
-                Bahá'í Companion
-              </h1>
-
-              <p>
-                Vous êtes actuellement hors connexion.
-              </p>
-
-            </body>
-
-          </html>
-          `,
-
+            "Vous êtes hors connexion.",
             {
               status: 503,
-
               headers: {
-                "Content-Type": "text/html; charset=utf-8",
+                "Content-Type":
+                  "text/plain; charset=utf-8",
               },
             },
           );
@@ -509,68 +419,17 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  /* =====================================================
-       RESSOURCES STATIQUES
-       ===================================================== */
-
   /*
-   * JS
-   * CSS
-   * images
-   * fonts
-   * sons
-   * icônes
-   * etc.
+   * =======================================================
+   * TOUT LE RESTE
+   * =======================================================
    *
-   * Stratégie :
+   * On laisse le navigateur / Workbox gérer.
    *
-   * CACHE FIRST
-   * puis réseau.
+   * C'est volontaire.
    */
 
-  event.respondWith(
-    caches
-      .match(request)
-
-      .then(async (cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        try {
-          const response = await fetch(request);
-
-          /*
-           * On sauvegarde seulement
-           * les réponses valides.
-           */
-
-          if (response.ok && response.status === 200) {
-            const responseClone = response.clone();
-
-            const cache = await caches.open(STATIC_CACHE);
-
-            await cache.put(request, responseClone);
-          }
-
-          return response;
-        } catch (error) {
-          console.log("📴 Ressource indisponible hors ligne :", url.pathname);
-
-          /*
-           * Si la ressource n'existe pas
-           * dans le cache et que le réseau
-           * est indisponible, on laisse
-           * le navigateur gérer l'erreur.
-           */
-
-          return new Response("", {
-            status: 503,
-            statusText: "Service Unavailable",
-          });
-        }
-      }),
-  );
+  return;
 });
 
 /* =========================================================
@@ -583,129 +442,180 @@ self.addEventListener("push", (event) => {
   let data = {};
 
   try {
-    data = event.data ? event.data.json() : {};
+    data = event.data
+      ? event.data.json()
+      : {};
   } catch (error) {
-    console.error("❌ Impossible de lire le payload Push :", error);
+    console.error(
+      "❌ Impossible de lire le payload Push :",
+      error,
+    );
 
     data = {};
   }
 
-  const title = data.title || "Bahá'í Companion";
+  const title =
+    data.title ||
+    "Bahá'í Companion";
 
   const options = {
-    body: data.body || data.message || "Vous avez une nouvelle notification.",
+    body:
+      data.body ||
+      data.message ||
+      "Vous avez une nouvelle notification.",
 
-    icon: data.icon || "/icons/notification.png",
+    icon:
+      data.icon ||
+      "/icons/notification.png",
 
-    badge: data.badge || "/icons/notification.png",
+    badge:
+      data.badge ||
+      "/icons/notification.png",
 
-    tag: data.tag || "bahai-companion",
+    tag:
+      data.tag ||
+      "bahai-companion",
 
     renotify: true,
 
     data: {
       url: data.url || "/",
 
-      notification_id: data.notification_id || null,
+      notification_id:
+        data.notification_id || null,
 
-      event_id: data.event_id || null,
+      event_id:
+        data.event_id || null,
 
-      quote_id: data.quote_id || null,
+      quote_id:
+        data.quote_id || null,
     },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(
+      title,
+      options,
+    ),
+  );
 });
 
 /* =========================================================
    NOTIFICATION CLICK
    ========================================================= */
 
-self.addEventListener("notificationclick", (event) => {
-  console.log("🔔 Notification cliquée");
+self.addEventListener(
+  "notificationclick",
+  (event) => {
+    console.log(
+      "🔔 Notification cliquée",
+    );
 
-  event.notification.close();
+    event.notification.close();
 
-  const action = event.action;
+    const action =
+      event.action;
 
-  const data = event.notification.data || {};
+    const data =
+      event.notification.data || {};
 
-  /*
-   * URL de base
-   */
+    let url =
+      data.url || "/";
 
-  let url = data.url || "/";
-
-  /* =====================================================
+    /* =====================================================
        NOTIFICATION ID
        ===================================================== */
 
-  if (data.notification_id) {
-    const separator = url.includes("?") ? "&" : "?";
+    if (data.notification_id) {
+      const separator =
+        url.includes("?")
+          ? "&"
+          : "?";
 
-    url = `${url}${separator}notification_id=${encodeURIComponent(
-      data.notification_id,
-    )}`;
+      url =
+        `${url}${separator}` +
+        `notification_id=${encodeURIComponent(
+          data.notification_id,
+        )}`;
+    }
 
-    console.log("🔔 Notification ID transmis :", data.notification_id);
-  }
-
-  /* =====================================================
-       DAILY QUOTE ID
+    /* =====================================================
+       QUOTE ID
        ===================================================== */
 
-  if (data.quote_id) {
-    const separator = url.includes("?") ? "&" : "?";
+    if (data.quote_id) {
+      const separator =
+        url.includes("?")
+          ? "&"
+          : "?";
 
-    url = `${url}${separator}quote_id=${encodeURIComponent(data.quote_id)}`;
+      url =
+        `${url}${separator}` +
+        `quote_id=${encodeURIComponent(
+          data.quote_id,
+        )}`;
+    }
 
-    console.log("📖 Quote ID transmis :", data.quote_id);
-  }
-
-  /* =====================================================
+    /* =====================================================
        EVENT ID
        ===================================================== */
 
-  if (data.event_id) {
-    const separator = url.includes("?") ? "&" : "?";
+    if (data.event_id) {
+      const separator =
+        url.includes("?")
+          ? "&"
+          : "?";
 
-    url = `${url}${separator}event_id=${encodeURIComponent(data.event_id)}`;
+      url =
+        `${url}${separator}` +
+        `event_id=${encodeURIComponent(
+          data.event_id,
+        )}`;
+    }
 
-    console.log("📅 Event ID transmis :", data.event_id);
-  }
-
-  /* =====================================================
-       OUVERTURE DE L'APPLICATION
+    /* =====================================================
+       OUVERTURE
        ===================================================== */
 
-  if (action === "" || action === "open") {
-    event.waitUntil(
-      self.clients
-
-        .matchAll({
-          type: "window",
-          includeUncontrolled: true,
-        })
-
-        .then((clientList) => {
-          /*
-           * Fenêtre existante
-           */
-
-          for (const client of clientList) {
-            if ("navigate" in client && "focus" in client) {
-              return client.navigate(url).then(() => client.focus());
+    if (
+      action === "" ||
+      action === "open"
+    ) {
+      event.waitUntil(
+        self.clients
+          .matchAll({
+            type: "window",
+            includeUncontrolled: true,
+          })
+          .then((clientList) => {
+            for (
+              const client
+              of clientList
+            ) {
+              if (
+                "navigate" in client &&
+                "focus" in client
+              ) {
+                return client
+                  .navigate(url)
+                  .then(() =>
+                    client.focus(),
+                  );
+              }
             }
-          }
 
-          /*
-           * Aucune fenêtre
-           */
+            if (
+              self.clients.openWindow
+            ) {
+              return self.clients.openWindow(
+                url,
+              );
+            }
 
-          if (self.clients.openWindow) {
-            return self.clients.openWindow(url);
-          }
-        }),
-    );
-  }
-});
+            return undefined;
+          }),
+      );
+    }
+  },
+);
+

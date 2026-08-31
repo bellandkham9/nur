@@ -2,63 +2,60 @@
 
 import BottomNavigation from "@/components/navigation/BottomNavigation";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { getCurrentUser,} from "@/lib/api";
+import { getCurrentUser } from "@/lib/api";
 
-type NotificationItem = {
+type CurrentUser = {
 id: number;
-title: string;
-message: string;
-event_source: string;
-event_id: number | null;
-scheduled_for: string;
-created_at: string;
-status: string;
-read_at: string | null;
+username: string;
+email: string;
+};
+
+export default function ProfilePage() {
+const [username, setUsername] = useState("Utilisateur");
+const [loadingUser, setLoadingUser] = useState(true);
+
+// =====================================================
+// UTILISATEUR CONNECTÉ
+// =====================================================
+
+useEffect(() => {
+let mounted = true;
+
+async function loadUser() {
+  try {
+    setLoadingUser(true);
+
+    const user: CurrentUser = await getCurrentUser();
+
+    if (mounted) {
+      setUsername(user.username);
+    }
+  } catch (error) {
+    console.error(
+      "❌ Impossible de récupérer l'utilisateur :",
+      error
+    );
+  } finally {
+    if (mounted) {
+      setLoadingUser(false);
+    }
+  }
+}
+
+loadUser();
+
+return () => {
+  mounted = false;
 };
 
 
-const [username, setUsername] = useState("Utilisateur");
-
-useEffect(() => {
-
-  async function loadUser() {
-
-    try {
-
-      const user =
-        await getCurrentUser();
-
-
-      setUsername(
-        user.username
-      );
-
-    } catch (error) {
-
-      console.error(
-        "❌ Impossible de récupérer l'utilisateur :",
-        error
-      );
-    }
-  }
-
-
-  loadUser();
-
 }, []);
-export default function ProfilePage() {
-const [notifications] = useState<NotificationItem[]>([]);
-
-const unreadCount = useMemo(() => {
-return notifications.filter(
-(notification) => notification.status !== "READ"
-).length;
-}, [notifications]);
 
 return ( <main className="min-h-screen bg-slate-50 pb-24">
 
+```
   {/* =====================================================
       HEADER
   ===================================================== */}
@@ -116,7 +113,7 @@ return ( <main className="min-h-screen bg-slate-50 pb-24">
           </p>
 
           <h2 className="mt-1 truncate text-xl font-bold text-slate-900">
-            {username}
+            {loadingUser ? "Chargement..." : username}
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
@@ -142,21 +139,27 @@ return ( <main className="min-h-screen bg-slate-50 pb-24">
 
     <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
 
-      <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <Link
+        href="/notifications"
+        className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
+      >
         <div className="text-2xl">
           🔔
         </div>
 
         <p className="mt-3 text-2xl font-bold text-slate-900">
-          {unreadCount}
+          —
         </p>
 
         <p className="mt-1 text-xs text-slate-500">
-          Notifications non lues
+          Notifications
         </p>
-      </div>
+      </Link>
 
-      <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <Link
+        href="/calendar"
+        className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
+      >
         <div className="text-2xl">
           📅
         </div>
@@ -168,9 +171,12 @@ return ( <main className="min-h-screen bg-slate-50 pb-24">
         <p className="mt-1 text-xs text-slate-500">
           Événements à venir
         </p>
-      </div>
+      </Link>
 
-      <div className="col-span-2 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:col-span-1">
+      <Link
+        href="/documents"
+        className="col-span-2 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md sm:col-span-1"
+      >
         <div className="text-2xl">
           📄
         </div>
@@ -182,7 +188,7 @@ return ( <main className="min-h-screen bg-slate-50 pb-24">
         <p className="mt-1 text-xs text-slate-500">
           Documents importés
         </p>
-      </div>
+      </Link>
 
     </section>
 
@@ -221,19 +227,9 @@ return ( <main className="min-h-screen bg-slate-50 pb-24">
 
             <div className="min-w-0 flex-1">
 
-              <div className="flex items-center gap-2">
-
-                <h3 className="font-semibold text-slate-900">
-                  Notifications
-                </h3>
-
-                {unreadCount > 0 && (
-                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
-
-              </div>
+              <h3 className="font-semibold text-slate-900">
+                Notifications
+              </h3>
 
               <p className="mt-1 text-sm text-slate-500">
                 Consulter vos rappels et notifications.
@@ -392,6 +388,7 @@ return ( <main className="min-h-screen bg-slate-50 pb-24">
   ===================================================== */}
 
   <BottomNavigation />
+
 </main>
 
 

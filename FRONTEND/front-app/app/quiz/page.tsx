@@ -414,7 +414,7 @@ export default function QuizPage() {
               className="group flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black text-slate-500 transition hover:bg-white hover:text-emerald-600"
             >
               <span className="transition group-hover:-translate-x-1">←</span>
-              Retour à l'acceuil
+              Acceuil
             </button>
 
             <button
