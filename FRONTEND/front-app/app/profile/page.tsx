@@ -4,7 +4,7 @@ import BottomNavigation from "@/components/navigation/BottomNavigation";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { getUserPreferences } from "@/lib/api";
+import { getCurrentUser,} from "@/lib/api";
 
 type NotificationItem = {
 id: number;
@@ -22,14 +22,21 @@ read_at: string | null;
 const [username, setUsername] = useState("Utilisateur");
 
 useEffect(() => {
+
   async function loadUser() {
+
     try {
-      const data = await getUserPreferences();
+
+      const user =
+        await getCurrentUser();
+
 
       setUsername(
-        data?.user?.username || "Utilisateur"
+        user.username
       );
+
     } catch (error) {
+
       console.error(
         "❌ Impossible de récupérer l'utilisateur :",
         error
@@ -37,9 +44,10 @@ useEffect(() => {
     }
   }
 
-  loadUser();
-}, []);
 
+  loadUser();
+
+}, []);
 export default function ProfilePage() {
 const [notifications] = useState<NotificationItem[]>([]);
 
