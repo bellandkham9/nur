@@ -1,5 +1,5 @@
 from pathlib import Path
-from .event_detector import EventDetector
+
 from django.db import transaction
 
 from ..models import (
@@ -7,6 +7,16 @@ from ..models import (
     DocumentPage,
     ExtractedImage,
     ExtractedTable,
+)
+
+from .event_detector import EventDetector
+
+from .DocumentSchemaAnalyzer import (
+    DocumentSchemaAnalyzer,
+)
+
+from .extraction_confidence_engine import (
+    ExtractionConfidenceEngine,
 )
 
 from .extractors.base_extractor import (
@@ -34,17 +44,27 @@ class DocumentProcessor:
     """
     Orchestrateur principal du traitement des documents.
 
-    Il :
-    - détecte le type de document ;
-    - choisit l'extracteur approprié ;
-    - lance l'extraction ;
-    - sauvegarde les pages ;
-    - sauvegarde les tableaux ;
-    - sauvegarde les images ;
-    - met à jour le statut du document.
+    Pipeline :
+
+        Document
+            ↓
+        Extractor
+            ↓
+        Schema Analyzer
+            ↓
+        Field Assignment
+            ↓
+        Consistency Checker
+            ↓
+        Confidence Engine
+            ↓
+        Sauvegarde
+            ↓
+        EventDetector
     """
 
     def __init__(self):
+
         self.extractors = [
             PDFExtractor(),
             DOCXExtractor(),
@@ -52,17 +72,29 @@ class DocumentProcessor:
             ImageExtractor(),
         ]
 
+        self.schema_analyzer = (
+            DocumentSchemaAnalyzer()
+        )
+
+        self.confidence_engine = (
+            ExtractionConfidenceEngine()
+        )
+
+    # ==========================================================
+    # TRAITEMENT PRINCIPAL
+    # ==========================================================
+
     def process(
         self,
         document: DocumentImport,
     ) -> DocumentImport:
-        """
-        Traite complètement un DocumentImport.
-        """
 
-        self._set_processing(document)
+        self._set_processing(
+            document
+        )
 
         try:
+
             file_path = self._get_file_path(
                 document
             )
@@ -72,20 +104,32 @@ class DocumentProcessor:
             )
 
             if extractor is None:
+
                 raise ValueError(
                     "Aucun extracteur disponible pour "
-                    f"le fichier : {document.original_name}"
+                    f"le fichier : "
+                    f"{document.original_name}"
                 )
+
+            # --------------------------------------------------
+            # EXTRACTION BRUTE
+            # --------------------------------------------------
 
             result = extractor.extract(
                 file_path
             )
 
             if not result.success:
+
                 raise RuntimeError(
                     result.error
-                    or "Erreur inconnue pendant l'extraction."
+                    or
+                    "Erreur inconnue pendant l'extraction."
                 )
+
+            # --------------------------------------------------
+            # SAUVEGARDE
+            # --------------------------------------------------
 
             with transaction.atomic():
 
@@ -105,17 +149,17 @@ class DocumentProcessor:
                     ]
                 )
 
-            # ============================================================
+            # --------------------------------------------------
             # DÉTECTION DES ÉVÉNEMENTS
-            # ============================================================
+            # --------------------------------------------------
 
             EventDetector().analyze_document(
                 document.id
             )
 
-            # ============================================================
+            # --------------------------------------------------
             # DOCUMENT TERMINÉ
-            # ============================================================
+            # --------------------------------------------------
 
             document.status = (
                 DocumentImport.Status.COMPLETED
@@ -142,141 +186,330 @@ class DocumentProcessor:
 
             raise
 
+    # ==========================================================
+    # CHEMIN DU FICHIER
+    # ==========================================================
+
     def _get_file_path(
         self,
         document: DocumentImport,
     ) -> str:
-        """
-        Retourne le chemin physique du fichier.
-        """
 
         if not document.file:
+
             raise ValueError(
                 "Le document ne contient aucun fichier."
             )
 
         return document.file.path
 
+    # ==========================================================
+    # EXTRACTEUR
+    # ==========================================================
+
     def _find_extractor(
         self,
         file_path: str,
     ):
-        """
-        Trouve l'extracteur capable de traiter
-        le fichier fourni.
-        """
 
         for extractor in self.extractors:
 
-            if extractor.supports(file_path):
+            if extractor.supports(
+                file_path
+            ):
+
                 return extractor
 
         return None
+
+    # ==========================================================
+    # SAUVEGARDE
+    # ==========================================================
 
     def _save_extraction_result(
         self,
         document: DocumentImport,
         result: ExtractionResult,
     ):
-        """
-        Transforme le résultat de l'extraction
-        en objets Django.
-        """
 
-        # Si le traitement est relancé,
-        # on supprime les anciennes données.
+        # ------------------------------------------------------
+        # Suppression des anciennes données
+        # ------------------------------------------------------
+
         document.pages.all().delete()
+
+        # ------------------------------------------------------
+        # Pages
+        # ------------------------------------------------------
 
         for extracted_page in result.pages:
 
             page = DocumentPage.objects.create(
                 document=document,
+
                 page_number=(
                     extracted_page.page_number
                 ),
+
                 extracted_text=(
                     extracted_page.text
                 ),
+
                 has_tables=bool(
                     extracted_page.tables
                 ),
+
                 has_images=bool(
                     extracted_page.images
                 ),
             )
+
+            # --------------------------------------------------
+            # TABLEAUX
+            # --------------------------------------------------
 
             self._save_tables(
                 page,
                 extracted_page.tables,
             )
 
+            # --------------------------------------------------
+            # IMAGES
+            # --------------------------------------------------
+
             self._save_images(
                 page,
                 extracted_page.images,
             )
+
+    # ==========================================================
+    # TABLEAUX
+    # ==========================================================
 
     def _save_tables(
         self,
         page: DocumentPage,
         tables: list[dict],
     ):
-        """
-        Sauvegarde les tableaux extraits.
-        """
 
         for index, table in enumerate(
             tables,
             start=1,
         ):
 
+            headers = table.get(
+                "headers",
+                [],
+            )
+
+            rows = table.get(
+                "rows",
+                [],
+            )
+
+            # --------------------------------------------------
+            # ANALYSE DU SCHÉMA
+            # --------------------------------------------------
+
+            schema_analysis = (
+                self.schema_analyzer.analyze(
+                    headers
+                )
+            )
+
+            # --------------------------------------------------
+            # TRAITEMENT DES LIGNES
+            # --------------------------------------------------
+
+            processed_rows = []
+
+            for row in rows:
+
+                assignments = (
+                    self.schema_analyzer.assign_row(
+                        headers=headers,
+                        row=row,
+                    )
+                )
+
+                extracted_fields = {
+                    field_name: assignment.value
+                    for field_name, assignment
+                    in assignments.items()
+                }
+
+                # --------------------------------------------------
+                # CONTRÔLE DE COHÉRENCE + CONFIANCE
+                # --------------------------------------------------
+
+                confidence_result = (
+                    self.confidence_engine.evaluate(
+                        extracted_fields=(
+                            extracted_fields
+                        ),
+                        assignments=assignments,
+                    )
+                )
+
+                processed_rows.append(
+                    {
+                        "fields": extracted_fields,
+
+                        "assignments": {
+                            field_name: {
+                                "value": assignment.value,
+                                "confidence": (
+                                    assignment.confidence
+                                ),
+                                "reason": (
+                                    assignment.reason
+                                ),
+                                "source_header": (
+                                    assignment.source_header
+                                ),
+                            }
+
+                            for field_name, assignment
+                            in assignments.items()
+                        },
+
+                        "confidence": (
+                            confidence_result.confidence
+                        ),
+
+                        "confidence_level": (
+                            confidence_result.level
+                        ),
+
+                        "reliable": (
+                            confidence_result.reliable
+                        ),
+
+                        "confidence_reasons": (
+                            confidence_result.reasons
+                        ),
+                    }
+                )
+
+            # --------------------------------------------------
+            # MÉTADONNÉES DU SCHÉMA
+            # --------------------------------------------------
+
+            schema_data = {
+                "columns": [
+                    {
+                        "index": column.index,
+
+                        "original_header": (
+                            column.original_header
+                        ),
+
+                        "normalized_header": (
+                            column.normalized_header
+                        ),
+
+                        "field": (
+                            column.field
+                        ),
+
+                        "confidence": (
+                            column.confidence
+                        ),
+
+                        "reason": (
+                            column.reason
+                        ),
+                    }
+
+                    for column
+                    in schema_analysis.columns
+                ],
+
+                "recognized_fields": (
+                    schema_analysis.recognized_fields
+                ),
+
+                "unknown_columns": (
+                    schema_analysis.unknown_columns
+                ),
+
+                "duplicate_fields": (
+                    schema_analysis.duplicate_fields
+                ),
+
+                "processed_rows": processed_rows,
+            }
+
+            # --------------------------------------------------
+            # CONSERVATION DES DONNÉES ORIGINALES
+            # --------------------------------------------------
+
+            raw_data = table.get(
+                "raw_data",
+                {},
+            )
+
+            if not isinstance(
+                raw_data,
+                dict,
+            ):
+
+                raw_data = {
+                    "original": raw_data
+                }
+
+            raw_data = {
+                **raw_data,
+
+                "original_headers": headers,
+
+                "original_rows": rows,
+
+                "schema_analysis": schema_data,
+            }
+
+            # --------------------------------------------------
+            # SAUVEGARDE
+            # --------------------------------------------------
+
             ExtractedTable.objects.create(
                 page=page,
+
                 table_index=table.get(
                     "table_index",
                     index,
                 ),
-                headers=table.get(
-                    "headers",
-                    [],
-                ),
-                rows=table.get(
-                    "rows",
-                    [],
-                ),
-                raw_data=table.get(
-                    "raw_data",
-                    {},
-                ),
+
+                headers=headers,
+
+                rows=rows,
+
+                raw_data=raw_data,
             )
+
+    # ==========================================================
+    # IMAGES
+    # ==========================================================
 
     def _save_images(
         self,
         page: DocumentPage,
         images: list[dict],
     ):
-        """
-        Sauvegarde les informations sur les images.
 
-        Pour l'instant, les fichiers images eux-mêmes
-        ne sont pas copiés.
+        # Pour l'instant on conserve
+        # le comportement existant.
 
-        Nous ajouterons leur gestion complète ensuite.
-        """
-
-        # Pour l'instant, on ne crée pas encore
-        # ExtractedImage automatiquement ici.
-        #
-        # La gestion physique des images sera ajoutée
-        # dans une prochaine étape.
         return
+
+    # ==========================================================
+    # PROCESSING
+    # ==========================================================
 
     def _set_processing(
         self,
         document: DocumentImport,
     ):
-        """
-        Passe le document en état PROCESSING.
-        """
 
         document.status = (
             DocumentImport.Status.PROCESSING
@@ -292,14 +525,15 @@ class DocumentProcessor:
             ]
         )
 
+    # ==========================================================
+    # FAILED
+    # ==========================================================
+
     def _set_failed(
         self,
         document: DocumentImport,
         error: str,
     ):
-        """
-        Passe le document en état FAILED.
-        """
 
         document.status = (
             DocumentImport.Status.FAILED

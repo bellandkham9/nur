@@ -46,61 +46,41 @@ from .services.document_processor import DocumentProcessor
 # ============================================================
 
 class DocumentImportViewSet(viewsets.ModelViewSet):
-
-    queryset = DocumentImport.objects.all()
-
     serializer_class = DocumentImportSerializer
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
 
-    parser_classes = (
-        MultiPartParser,
-        FormParser,
-    )
-
-    def perform_create(self, serializer):
-        serializer.save(
+    def get_queryset(self):
+        return DocumentImport.objects.filter(
             user=self.request.user
         )
 
-    def create(self, request, *args, **kwargs,):
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
-        serializer = self.get_serializer(
-            data=request.data
-        )
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        serializer.is_valid(
-            raise_exception=True
-        )
-
-        document = serializer.save(
-            user=request.user
-        )
+        document = serializer.save(user=request.user)
 
         try:
-
-            DocumentProcessor().process(
-                document
-            )
-
+            DocumentProcessor().process(document)
         except Exception:
-
             document.refresh_from_db()
 
             return Response(
-                self.get_serializer(
-                    document
-                ).data,
+                self.get_serializer(document).data,
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
         document.refresh_from_db()
 
         return Response(
-            self.get_serializer(
-                document
-            ).data,
+            self.get_serializer(document).data,
             status=status.HTTP_201_CREATED,
         )
-
+    
 # ============================================================
 # PAGES
 # ============================================================
