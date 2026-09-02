@@ -737,7 +737,7 @@ export default function EventsPage() {
                     updateForm("title", e.target.value)
                   }
                   placeholder="Ex. Réunion avec le comité"
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="mt-2 w-full rounded-xl border text-slate-700 border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
 
@@ -753,7 +753,7 @@ export default function EventsPage() {
                   onChange={(e) =>
                     updateForm("event_type", e.target.value)
                   }
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-emerald-500"
+                  className="mt-2 w-full  text-slate-700 rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-emerald-500"
                 >
                   {EVENT_TYPES.map((type) => (
                     <option
@@ -779,7 +779,7 @@ export default function EventsPage() {
                   onChange={(e) =>
                     updateForm("date", e.target.value)
                   }
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500"
+                  className="mt-2 w-full text-slate-700 rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -800,7 +800,7 @@ export default function EventsPage() {
                         e.target.value,
                       )
                     }
-                    className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+                    className="mt-2 w-full text-slate-700 rounded-xl border border-slate-300 px-4 py-3"
                   />
                 </div>
 
@@ -818,7 +818,7 @@ export default function EventsPage() {
                         e.target.value,
                       )
                     }
-                    className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+                    className="mt-2 w-full text-slate-700 rounded-xl border border-slate-300 px-4 py-3"
                   />
                 </div>
               </div>
@@ -837,7 +837,7 @@ export default function EventsPage() {
                     updateForm("location", e.target.value)
                   }
                   placeholder="Ex. Centre bahá'í"
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+                  className="mt-2 w-full text-slate-700 rounded-xl border border-slate-300 px-4 py-3"
                 />
               </div>
 
@@ -858,7 +858,7 @@ export default function EventsPage() {
                     )
                   }
                   placeholder="Nom du responsable"
-                  className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+                  className="mt-2 w-full text-slate-700 rounded-xl border border-slate-300 px-4 py-3"
                 />
               </div>
 
@@ -879,7 +879,7 @@ export default function EventsPage() {
                     )
                   }
                   placeholder="Ajoutez une description..."
-                  className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-4 py-3"
+                  className="mt-2 w-full resize-none rounded-xl text-slate-700 border border-slate-300 px-4 py-3"
                 />
               </div>
 
@@ -896,7 +896,7 @@ export default function EventsPage() {
                         e.target.checked,
                       )
                     }
-                    className="h-5 w-5 rounded"
+                    className="h-5 w-5 rounded text-slate-700"
                   />
 
                   <div>

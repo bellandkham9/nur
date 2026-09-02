@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -34,27 +33,19 @@ import type {
 
 type NotificationItem = {
   id: number;
-
   title: string;
-
   message: string;
-
   event_source: string;
-
   event_id: number | null;
-
   scheduled_for: string;
-
   created_at: string;
-
   status: "PENDING" | "READ" | string;
-
   read_at: string | null;
 };
 
 
 // ============================================================
-// JOURS DE LA SEMAINE
+// JOURS
 // ============================================================
 
 const WEEK_DAYS = [
@@ -69,41 +60,11 @@ const WEEK_DAYS = [
 
 
 // ============================================================
-// MOIS BAHÁ'ÍS
-// ============================================================
-
-const BAHÁI_MONTHS = [
-  ["Bahá", "Splendeur"],
-  ["Jalál", "Gloire"],
-  ["Jamál", "Beauté"],
-  ["'Azamat", "Grandeur"],
-  ["Núr", "Lumière"],
-  ["Rahmat", "Miséricorde"],
-  ["Kalimát", "Paroles"],
-  ["Kamál", "Perfection"],
-  ["Asmá'", "Noms"],
-  ["'Izzat", "Puissance"],
-  ["Mashíyyat", "Volonté"],
-  ["'Ilm", "Connaissance"],
-  ["Qudrat", "Pouvoir"],
-  ["Qawl", "Parole"],
-  ["Masá'il", "Questions"],
-  ["Sharaf", "Honneur"],
-  ["Sultán", "Souveraineté"],
-  ["Mulk", "Domination"],
-  ["'Alá", "Élévation"],
-] as const;
-
-
-// ============================================================
 // OUTILS
 // ============================================================
 
 function formatTime(time: string | null) {
-  if (!time) {
-    return "Heure non définie";
-  }
-
+  if (!time) return "Heure non définie";
   return time.substring(0, 5);
 }
 
@@ -142,7 +103,7 @@ function getMonthName(date: Date) {
 
 
 // ============================================================
-// PAGE
+// PAGE CONTENT
 // ============================================================
 
 function CalendarPageContent() {
@@ -164,129 +125,82 @@ function CalendarPageContent() {
 
 
   // ==========================================================
-  // ÉVÉNEMENTS PERSONNELS / DOCUMENTS
+  // EVENTS
   // ==========================================================
 
-  const [
-    events,
-    setEvents,
-  ] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] =
+    useState<CalendarEvent[]>([]);
 
+  const [loading, setLoading] =
+    useState(true);
 
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
-
-
-  const [
-    error,
-    setError,
-  ] = useState<string | null>(null);
+  const [error, setError] =
+    useState<string | null>(null);
 
 
   // ==========================================================
   // NOTIFICATIONS
   // ==========================================================
 
-  const [
-    notifications,
-    setNotifications,
-  ] = useState<NotificationItem[]>([]);
+  const [notifications, setNotifications] =
+    useState<NotificationItem[]>([]);
 
+  const [notificationsLoading, setNotificationsLoading] =
+    useState(false);
 
-  const [
-    notificationsLoading,
-    setNotificationsLoading,
-  ] = useState(false);
+  const [notificationsError, setNotificationsError] =
+    useState<string | null>(null);
 
-
-  const [
-    notificationsError,
-    setNotificationsError,
-  ] = useState<string | null>(null);
-
-
-  const [
-    markingAllRead,
-    setMarkingAllRead,
-  ] = useState(false);
+  const [markingAllRead, setMarkingAllRead] =
+    useState(false);
 
 
   // ==========================================================
-  // MOIS COURANT
+  // MONTH
   // ==========================================================
 
-  const [
-    currentMonth,
-    setCurrentMonth,
-  ] = useState(
-    new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      1,
-    ),
-  );
+  const [currentMonth, setCurrentMonth] =
+    useState(
+      new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1,
+      ),
+    );
 
-
-  const [
-    selectedDate,
-    setSelectedDate,
-  ] = useState(todayString);
+  const [selectedDate, setSelectedDate] =
+    useState(todayString);
 
 
   // ==========================================================
-  // CALENDRIER BAHÁ'Í
+  // BAHÁ'Í
   // ==========================================================
 
-  const [
-    bahaiDate,
-    setBahaiDate,
-  ] = useState<BahaiDate | null>(null);
+  const [bahaiDate, setBahaiDate] =
+    useState<BahaiDate | null>(null);
+
+  const [nextBahaiEvent, setNextBahaiEvent] =
+    useState<BahaiEvent | null>(null);
+
+  const [bahaiCalendarLoading, setBahaiCalendarLoading] =
+    useState(true);
+
+  const [bahaiCalendarError, setBahaiCalendarError] =
+    useState<string | null>(null);
 
 
-  const [
-    nextBahaiEvent,
-    setNextBahaiEvent,
-  ] = useState<BahaiEvent | null>(null);
+  const [bahaiEvents, setBahaiEvents] =
+    useState<BahaiEvent[]>([]);
 
+  const [bahaiEventsLoading, setBahaiEventsLoading] =
+    useState(false);
 
-  const [
-    bahaiCalendarLoading,
-    setBahaiCalendarLoading,
-  ] = useState(true);
-
-
-  const [
-    bahaiCalendarError,
-    setBahaiCalendarError,
-  ] = useState<string | null>(null);
-
-
-  // ==========================================================
-  // ÉVÉNEMENTS BAHÁ'ÍS DE L'ANNÉE
-  // ==========================================================
-
-  const [
-    bahaiEvents,
-    setBahaiEvents,
-  ] = useState<BahaiEvent[]>([]);
-
-
-  const [
-    bahaiEventsLoading,
-    setBahaiEventsLoading,
-  ] = useState(false);
-
-
-  const [
-    bahaiEventsError,
-    setBahaiEventsError,
-  ] = useState<string | null>(null);
+  const [bahaiEventsError, setBahaiEventsError] =
+    useState<string | null>(null);
 
 
   // ==========================================================
-  // CHARGEMENT DU CALENDRIER BAHÁ'Í
+  // CHARGEMENT CALENDRIER BAHÁ'Í
   // ==========================================================
 
   useEffect(() => {
@@ -296,9 +210,7 @@ function CalendarPageContent() {
       try {
 
         setBahaiCalendarLoading(true);
-
         setBahaiCalendarError(null);
-
 
         const [
           todayResponse,
@@ -308,11 +220,9 @@ function CalendarPageContent() {
           getNextBahaiEvent(),
         ]);
 
-
         setBahaiDate(
           todayResponse.bahai_date,
         );
-
 
         setNextBahaiEvent(
           nextEventResponse.event,
@@ -324,7 +234,6 @@ function CalendarPageContent() {
           "❌ Impossible de charger le calendrier bahá'í :",
           error,
         );
-
 
         setBahaiCalendarError(
           error instanceof Error
@@ -340,14 +249,13 @@ function CalendarPageContent() {
 
     }
 
-
     loadBahaiCalendar();
 
   }, []);
 
 
   // ==========================================================
-  // CHARGEMENT DES ÉVÉNEMENTS PERSONNELS / DOCUMENTS
+  // CHARGEMENT EVENTS
   // ==========================================================
 
   useEffect(() => {
@@ -357,13 +265,10 @@ function CalendarPageContent() {
       try {
 
         setLoading(true);
-
         setError(null);
-
 
         const data =
           await apiFetch("/api/events/");
-
 
         const normalizedEvents: CalendarEvent[] =
           Array.isArray(data)
@@ -372,10 +277,7 @@ function CalendarPageContent() {
               ? data.events
               : [];
 
-
-        setEvents(
-          normalizedEvents,
-        );
+        setEvents(normalizedEvents);
 
       } catch (err) {
 
@@ -383,7 +285,6 @@ function CalendarPageContent() {
           "❌ Impossible de charger les événements :",
           err,
         );
-
 
         setError(
           err instanceof Error
@@ -399,14 +300,13 @@ function CalendarPageContent() {
 
     }
 
-
     loadEvents();
 
   }, []);
 
 
   // ==========================================================
-  // CHARGEMENT DES ÉVÉNEMENTS BAHÁ'ÍS
+  // CHARGEMENT EVENTS BAHÁ'ÍS
   // ==========================================================
 
   useEffect(() => {
@@ -416,17 +316,13 @@ function CalendarPageContent() {
       try {
 
         setBahaiEventsLoading(true);
-
         setBahaiEventsError(null);
-
 
         const year =
           currentMonth.getFullYear();
 
-
         const response =
           await getBahaiEvents(year);
-
 
         setBahaiEvents(
           response.events ?? [],
@@ -438,7 +334,6 @@ function CalendarPageContent() {
           "❌ Impossible de charger les événements bahá'ís :",
           error,
         );
-
 
         setBahaiEventsError(
           error instanceof Error
@@ -454,70 +349,41 @@ function CalendarPageContent() {
 
     }
 
-
     loadBahaiEvents();
 
   }, [currentMonth]);
 
 
   // ==========================================================
-  // NOTIFICATION OUVERTE DEPUIS UNE NOTIFICATION PUSH
+  // NOTIFICATION PUSH
   // ==========================================================
 
   useEffect(() => {
 
-    if (!notificationId) {
-      return;
-    }
-
+    if (!notificationId) return;
 
     const id =
       Number(notificationId);
-
 
     if (
       !Number.isInteger(id) ||
       id <= 0
     ) {
-
-      console.warn(
-        "⚠️ notification_id invalide :",
-        notificationId,
-      );
-
       return;
     }
-
 
     async function markAsRead() {
 
       try {
-
-        console.log(
-          "📖 Marquage notification comme lue :",
-          id,
-        );
-
-
         await markNotificationAsRead(id);
-
-
-        console.log(
-          "✅ Notification marquée comme lue :",
-          id,
-        );
-
       } catch (error) {
-
         console.error(
           "❌ Impossible de marquer la notification comme lue :",
           error,
         );
-
       }
 
     }
-
 
     markAsRead();
 
@@ -525,7 +391,7 @@ function CalendarPageContent() {
 
 
   // ==========================================================
-  // CHARGEMENT DES NOTIFICATIONS
+  // NOTIFICATIONS
   // ==========================================================
 
   useEffect(() => {
@@ -535,13 +401,10 @@ function CalendarPageContent() {
       try {
 
         setNotificationsLoading(true);
-
         setNotificationsError(null);
-
 
         const data =
           await getNotifications();
-
 
         const normalizedNotifications:
           NotificationItem[] =
@@ -553,7 +416,6 @@ function CalendarPageContent() {
                 ? data.notifications
                 : [];
 
-
         setNotifications(
           normalizedNotifications,
         );
@@ -564,7 +426,6 @@ function CalendarPageContent() {
           "❌ Impossible de charger les notifications :",
           error,
         );
-
 
         setNotificationsError(
           error instanceof Error
@@ -580,14 +441,13 @@ function CalendarPageContent() {
 
     }
 
-
     loadNotifications();
 
   }, []);
 
 
   // ==========================================================
-  // MARQUER UNE NOTIFICATION COMME LUE
+  // MARQUER LU
   // ==========================================================
 
   async function handleMarkNotificationAsRead(
@@ -600,13 +460,11 @@ function CalendarPageContent() {
         notificationId,
       );
 
-
       setNotifications(
-        (previous) =>
+        previous =>
           previous.map(
-            (notification) =>
-              notification.id ===
-              notificationId
+            notification =>
+              notification.id === notificationId
                 ? {
                     ...notification,
                     status: "READ",
@@ -615,12 +473,6 @@ function CalendarPageContent() {
                   }
                 : notification,
           ),
-      );
-
-
-      console.log(
-        "✅ Notification marquée comme lue :",
-        notificationId,
       );
 
     } catch (error) {
@@ -636,7 +488,7 @@ function CalendarPageContent() {
 
 
   // ==========================================================
-  // MARQUER TOUTES LES NOTIFICATIONS COMME LUES
+  // MARQUER TOUT LU
   // ==========================================================
 
   async function handleMarkAllNotificationsAsRead() {
@@ -645,14 +497,12 @@ function CalendarPageContent() {
 
       setMarkingAllRead(true);
 
-
       await markAllNotificationsAsRead();
 
-
       setNotifications(
-        (previous) =>
+        previous =>
           previous.map(
-            (notification) => ({
+            notification => ({
               ...notification,
               status: "READ",
               read_at:
@@ -660,11 +510,6 @@ function CalendarPageContent() {
                 new Date().toISOString(),
             }),
           ),
-      );
-
-
-      console.log(
-        "✅ Toutes les notifications sont marquées comme lues.",
       );
 
     } catch (error) {
@@ -684,7 +529,7 @@ function CalendarPageContent() {
 
 
   // ==========================================================
-  // JOURS DU MOIS
+  // CALENDAR DAYS
   // ==========================================================
 
   const calendarDays = useMemo(() => {
@@ -695,14 +540,12 @@ function CalendarPageContent() {
     const month =
       currentMonth.getMonth();
 
-
     const firstDay =
       new Date(
         year,
         month,
         1,
       );
-
 
     const lastDay =
       new Date(
@@ -711,49 +554,28 @@ function CalendarPageContent() {
         0,
       );
 
-
-    /*
-     * JavaScript :
-     *
-     * Dimanche = 0
-     * Lundi = 1
-     *
-     * Nous voulons :
-     *
-     * Lundi = 0
-     * ...
-     * Dimanche = 6
-     */
-
     const firstWeekDay =
       (firstDay.getDay() + 6) % 7;
-
 
     const totalDays =
       lastDay.getDate();
 
-
     const cells:
       (Date | null)[] = [];
-
 
     for (
       let i = 0;
       i < firstWeekDay;
       i++
     ) {
-
       cells.push(null);
-
     }
-
 
     for (
       let day = 1;
       day <= totalDays;
       day++
     ) {
-
       cells.push(
         new Date(
           year,
@@ -761,18 +583,13 @@ function CalendarPageContent() {
           day,
         ),
       );
-
     }
-
 
     while (
       cells.length % 7 !== 0
     ) {
-
       cells.push(null);
-
     }
-
 
     return cells;
 
@@ -780,7 +597,7 @@ function CalendarPageContent() {
 
 
   // ==========================================================
-  // ÉVÉNEMENTS DE LA DATE SÉLECTIONNÉE
+  // SELECTED EVENTS
   // ==========================================================
 
   const selectedEvents =
@@ -788,9 +605,8 @@ function CalendarPageContent() {
 
       return events
         .filter(
-          (event) =>
-            event.date ===
-            selectedDate,
+          event =>
+            event.date === selectedDate,
         )
         .sort(
           (a, b) =>
@@ -807,18 +623,13 @@ function CalendarPageContent() {
     ]);
 
 
-  // ==========================================================
-  // ÉVÉNEMENTS BAHÁ'ÍS DE LA DATE SÉLECTIONNÉE
-  // ==========================================================
-
   const selectedBahaiEvents =
     useMemo(() => {
 
       return bahaiEvents
         .filter(
-          (event) =>
-            event.date ===
-            selectedDate,
+          event =>
+            event.date === selectedDate,
         )
         .sort(
           (a, b) =>
@@ -834,7 +645,7 @@ function CalendarPageContent() {
 
 
   // ==========================================================
-  // PROCHAINS ÉVÉNEMENTS PERSONNELS
+  // UPCOMING
   // ==========================================================
 
   const upcomingEvents =
@@ -842,24 +653,19 @@ function CalendarPageContent() {
 
       return [...events]
         .filter(
-          (event) =>
-            event.date >=
-            todayString,
+          event =>
+            event.date >= todayString,
         )
         .sort(
           (a, b) => {
 
             if (
-              a.date !==
-              b.date
+              a.date !== b.date
             ) {
-
               return a.date.localeCompare(
                 b.date,
               );
-
             }
-
 
             return (
               a.start_time || ""
@@ -877,18 +683,13 @@ function CalendarPageContent() {
     ]);
 
 
-  // ==========================================================
-  // PROCHAINS ÉVÉNEMENTS BAHÁ'ÍS
-  // ==========================================================
-
   const upcomingBahaiEvents =
     useMemo(() => {
 
       return [...bahaiEvents]
         .filter(
-          (event) =>
-            event.date >=
-            todayString,
+          event =>
+            event.date >= todayString,
         )
         .sort(
           (a, b) =>
@@ -905,7 +706,7 @@ function CalendarPageContent() {
 
 
   // ==========================================================
-  // ÉVÉNEMENTS D'UNE DATE
+  // DATE EVENTS
   // ==========================================================
 
   function getEventsForDate(
@@ -917,19 +718,13 @@ function CalendarPageContent() {
         targetDate,
       );
 
-
     return events.filter(
-      (event) =>
-        event.date ===
-        dateString,
+      event =>
+        event.date === dateString,
     );
 
   }
 
-
-  // ==========================================================
-  // ÉVÉNEMENTS BAHÁ'ÍS D'UNE DATE
-  // ==========================================================
 
   function getBahaiEventsForDate(
     targetDate: Date,
@@ -940,18 +735,16 @@ function CalendarPageContent() {
         targetDate,
       );
 
-
     return bahaiEvents.filter(
-      (event) =>
-        event.date ===
-        dateString,
+      event =>
+        event.date === dateString,
     );
 
   }
 
 
   // ==========================================================
-  // NAVIGATION MOIS
+  // MONTH NAVIGATION
   // ==========================================================
 
   function previousMonth() {
@@ -990,7 +783,6 @@ function CalendarPageContent() {
       ),
     );
 
-
     setSelectedDate(
       todayString,
     );
@@ -999,58 +791,70 @@ function CalendarPageContent() {
 
 
   // ==========================================================
-  // NOTIFICATIONS NON LUES
+  // NOTIFICATIONS
   // ==========================================================
-
-  const unreadNotifications =
-    notifications.filter(
-      (notification) =>
-        notification.status !==
-        "READ",
-    );
-
 
   const unreadCount =
-    unreadNotifications.length;
+    notifications.filter(
+      notification =>
+        notification.status !== "READ",
+    ).length;
 
 
   // ==========================================================
-  // RENDU
+  // RENDER
   // ==========================================================
 
   return (
 
-    <main className="min-h-screen bg-slate-50 pb-24">
+    <main className="min-h-screen bg-[#f6f8f7] pb-28 text-slate-900">
 
 
-      {/* =====================================================
+      {/* ====================================================
           HEADER
-      ===================================================== */}
+      ==================================================== */}
 
-      <header className="border-b bg-white px-5 pb-5 pt-7">
+      <header className="relative overflow-hidden bg-white">
 
-        <div className="mx-auto max-w-6xl">
+        <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-emerald-100/60 blur-3xl" />
 
-          <div className="flex items-center justify-between">
+        <div className="mx-auto max-w-6xl px-5 pb-7 pt-7">
+
+          <div className="relative flex items-center justify-between">
 
             <div>
 
-              <p className="text-sm text-slate-500">
-                Mon agenda
-              </p>
+              <div className="mb-2 flex items-center gap-2">
 
-              <h1 className="text-2xl font-bold text-slate-900">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-lg">
+                  🌿
+                </span>
+
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">
+                  Bahá'í Companion
+                </span>
+
+              </div>
+
+              <h1 className="text-3xl font-black tracking-tight">
                 Calendrier
               </h1>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Ton agenda et les temps forts bahá'ís.
+              </p>
 
             </div>
 
 
             <Link
               href="/"
-              className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
+              className="flex h-11 items-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
             >
-              Accueil
+              <span>⌂</span>
+              <span className="hidden sm:inline">
+                Accueil
+              </span>
             </Link>
 
           </div>
@@ -1060,86 +864,87 @@ function CalendarPageContent() {
       </header>
 
 
-      {/* =====================================================
-          CONTENU
-      ===================================================== */}
+      {/* ====================================================
+          CONTENT
+      ==================================================== */}
 
-      <div className="mx-auto max-w-6xl px-4 py-6">
-
-
-        {/* ===================================================
-            CALENDRIER MENSUEL
-        =================================================== */}
-
-        <section className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-6">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5">
 
 
-          {/* NAVIGATION */}
+        {/* ==================================================
+            CALENDAR
+        ================================================== */}
 
-          <div className="mb-6 flex items-center justify-between gap-3">
-
-            <button
-              onClick={previousMonth}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 text-lg text-slate-700 transition hover:bg-slate-300"
-              aria-label="Mois précédent"
-            >
-              ←
-            </button>
+        <section className="overflow-hidden rounded-4xl bg-white shadow-[0_10px_40px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
 
 
-            <div className="text-center">
+          {/* CALENDAR HEADER */}
 
-              <h2 className="text-xl font-bold capitalize text-slate-900">
-                {getMonthName(
-                  currentMonth,
-                )}
-              </h2>
+          <div className="border-b border-slate-100 px-4 py-5 sm:px-6">
+
+            <div className="flex items-center justify-between">
+
+              <button
+                onClick={previousMonth}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-xl font-medium text-slate-600 transition hover:bg-slate-200 active:scale-95"
+                aria-label="Mois précédent"
+              >
+                ‹
+              </button>
+
+
+              <div className="text-center">
+
+                <h2 className="text-xl font-black capitalize tracking-tight">
+                  {getMonthName(
+                    currentMonth,
+                  )}
+                </h2>
+
+                <button
+                  onClick={goToToday}
+                  className="mt-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700"
+                >
+                  Revenir à aujourd'hui
+                </button>
+
+              </div>
 
 
               <button
-                onClick={goToToday}
-                className="mt-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+                onClick={nextMonth}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-xl font-medium text-slate-600 transition hover:bg-slate-200 active:scale-95"
+                aria-label="Mois suivant"
               >
-                Aujourd'hui
+                ›
               </button>
 
             </div>
 
+          </div>
 
-            <button
-              onClick={nextMonth}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 text-lg text-slate-700 transition hover:bg-slate-300"
-              aria-label="Mois suivant"
-            >
-              →
-            </button>
+
+          {/* WEEK */}
+
+          <div className="grid grid-cols-7 border-b border-slate-100 px-2 py-3 sm:px-4">
+
+            {WEEK_DAYS.map(day => (
+
+              <div
+                key={day}
+                className="text-center text-[10px] font-black uppercase tracking-wider text-slate-400 sm:text-xs"
+              >
+                {day}
+              </div>
+
+            ))}
 
           </div>
 
 
-          {/* JOURS DE LA SEMAINE */}
+          {/* DAYS */}
 
-          <div className="grid grid-cols-7 border-b border-slate-200 pb-2">
-
-            {WEEK_DAYS.map(
-              (day) => (
-
-                <div
-                  key={day}
-                  className="text-center text-xs font-bold uppercase tracking-wide text-slate-700"
-                >
-                  {day}
-                </div>
-
-              ),
-            )}
-
-          </div>
-
-
-          {/* GRILLE */}
-
-          <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-2">
+          <div className="grid grid-cols-7 gap-1 p-2 sm:gap-2 sm:p-4">
 
             {calendarDays.map(
               (date, index) => {
@@ -1149,7 +954,7 @@ function CalendarPageContent() {
                   return (
                     <div
                       key={`empty-${index}`}
-                      className="min-h-16 rounded-xl sm:min-h-24"
+                      className="min-h-18 sm:min-h-24"
                     />
                   );
 
@@ -1157,41 +962,25 @@ function CalendarPageContent() {
 
 
                 const dateString =
-                  dateToString(
-                    date,
-                  );
-
+                  dateToString(date);
 
                 const dayEvents =
-                  getEventsForDate(
-                    date,
-                  );
-
+                  getEventsForDate(date);
 
                 const dayBahaiEvents =
-                  getBahaiEventsForDate(
-                    date,
-                  );
-
+                  getBahaiEventsForDate(date);
 
                 const isToday =
-                  dateString ===
-                  todayString;
-
+                  dateString === todayString;
 
                 const isSelected =
-                  dateString ===
-                  selectedDate;
-
+                  dateString === selectedDate;
 
                 const hasPersonalEvents =
-                  dayEvents.length >
-                  0;
-
+                  dayEvents.length > 0;
 
                 const hasBahaiEvents =
-                  dayBahaiEvents.length >
-                  0;
+                  dayBahaiEvents.length > 0;
 
 
                 return (
@@ -1204,32 +993,24 @@ function CalendarPageContent() {
                       )
                     }
                     className={`
-                      relative min-h-16 rounded-xl p-2 text-left transition sm:min-h-24
+                      group relative min-h-18 rounded-2xl p-1.5 text-left transition-all sm:min-h-24 sm:p-2.5
                       ${
                         isSelected
-                          ? "bg-emerald-600 text-white shadow-md"
+                          ? "bg-emerald-600 shadow-lg shadow-emerald-600/20"
                           : "bg-slate-50 hover:bg-emerald-50"
                       }
                     `}
                   >
 
-                    {/* NUMÉRO */}
-
                     <div
                       className={`
-                        flex h-8 w-8 items-center justify-center
-                        rounded-full
-                        text-sm font-bold
+                        flex h-8 w-8 items-center justify-center rounded-full text-sm font-black sm:h-9 sm:w-9
                         ${
                           isSelected
-                            ? "text-white"
-                            : "text-slate-900"
-                        }
-                        ${
-                          isToday &&
-                          !isSelected
-                            ? "bg-emerald-100 text-emerald-700"
-                            : ""
+                            ? "bg-white/15 text-white"
+                            : isToday
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "text-slate-800"
                         }
                       `}
                     >
@@ -1237,15 +1018,10 @@ function CalendarPageContent() {
                     </div>
 
 
-                    {/* INDICATEURS */}
-
                     {(hasPersonalEvents ||
                       hasBahaiEvents) && (
 
-                      <div className="mt-2 space-y-1">
-
-
-                        {/* ÉVÉNEMENTS BAHÁ'ÍS */}
+                      <div className="absolute bottom-2 left-2 right-2 space-y-1">
 
                         {hasBahaiEvents && (
 
@@ -1253,10 +1029,10 @@ function CalendarPageContent() {
 
                             <span
                               className={`
-                                h-1.5 w-1.5 shrink-0 rounded-full
+                                h-1.5 w-1.5 rounded-full
                                 ${
                                   isSelected
-                                    ? "bg-white"
+                                    ? "bg-amber-200"
                                     : "bg-amber-500"
                                 }
                               `}
@@ -1264,17 +1040,15 @@ function CalendarPageContent() {
 
                             <span
                               className={`
-                                truncate text-[9px] font-semibold
+                                hidden truncate text-[9px] font-bold sm:block
                                 ${
                                   isSelected
-                                    ? "text-white"
+                                    ? "text-white/80"
                                     : "text-amber-700"
                                 }
                               `}
                             >
-                              {dayBahaiEvents.length}
-                              {" "}
-                              bahá'í
+                              {dayBahaiEvents.length} bahá'í
                             </span>
 
                           </div>
@@ -1282,18 +1056,16 @@ function CalendarPageContent() {
                         )}
 
 
-                        {/* ÉVÉNEMENTS PERSONNELS */}
-
                         {hasPersonalEvents && (
 
                           <div className="flex items-center gap-1">
 
                             <span
                               className={`
-                                h-1.5 w-1.5 shrink-0 rounded-full
+                                h-1.5 w-1.5 rounded-full
                                 ${
                                   isSelected
-                                    ? "bg-white"
+                                    ? "bg-emerald-100"
                                     : "bg-emerald-500"
                                 }
                               `}
@@ -1301,21 +1073,15 @@ function CalendarPageContent() {
 
                             <span
                               className={`
-                                truncate text-[9px] font-semibold
+                                hidden truncate text-[9px] font-bold sm:block
                                 ${
                                   isSelected
-                                    ? "text-white"
+                                    ? "text-white/80"
                                     : "text-emerald-700"
                                 }
                               `}
                             >
-                              {dayEvents.length}
-                              {" "}
-                              activité
-                              {dayEvents.length >
-                              1
-                                ? "s"
-                                : ""}
+                              {dayEvents.length} activité
                             </span>
 
                           </div>
@@ -1336,26 +1102,25 @@ function CalendarPageContent() {
           </div>
 
 
-          {/* LÉGENDE */}
+          {/* LEGEND */}
 
-          <div className="mt-5 flex flex-wrap gap-4 border-t border-slate-100 pt-4">
+          <div className="flex flex-wrap gap-5 border-t border-slate-100 px-5 py-4">
 
             <div className="flex items-center gap-2">
 
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
 
-              <span className="text-xs text-slate-500">
+              <span className="text-xs font-medium text-slate-500">
                 Activité
               </span>
 
             </div>
 
-
             <div className="flex items-center gap-2">
 
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
 
-              <span className="text-xs text-slate-500">
+              <span className="text-xs font-medium text-slate-500">
                 Événement bahá'í
               </span>
 
@@ -1366,47 +1131,62 @@ function CalendarPageContent() {
         </section>
 
 
-        {/* ===================================================
-            DATE SÉLECTIONNÉE
-        =================================================== */}
+        {/* ==================================================
+            SELECTED DATE
+        ================================================== */}
 
-        <section className="mt-6 rounded-3xl bg-emerald-600 p-5 text-white shadow-sm">
+        <section className="relative mt-5 overflow-hidden rounded-4xl bg-slate-900 p-6 text-white shadow-xl shadow-slate-900/10">
 
-          <p className="text-sm text-emerald-100">
-            Date sélectionnée
-          </p>
+          <div className="absolute -right-10 -top-16 h-40 w-40 rounded-full bg-emerald-500/20 blur-2xl" />
 
-          <h2 className="mt-1 text-xl font-bold capitalize">
-            {formatDate(
-              selectedDate,
-            )}
-          </h2>
+          <div className="relative">
+
+            <div className="flex items-center gap-2">
+
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                Date sélectionnée
+              </p>
+
+            </div>
+
+            <h2 className="mt-2 text-xl font-black capitalize sm:text-2xl">
+              {formatDate(selectedDate)}
+            </h2>
+
+          </div>
 
         </section>
 
 
-        {/* ===================================================
-            ÉVÉNEMENTS BAHÁ'ÍS DE LA DATE
-        =================================================== */}
+        {/* ==================================================
+            BAHÁ'Í EVENTS
+        ================================================== */}
 
-        <section className="mt-6">
+        <section className="mt-10">
 
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-5 flex items-end justify-between">
 
             <div>
 
-              <p className="text-sm font-medium uppercase tracking-[0.15em] text-amber-500">
-                Calendrier bahá'í
-              </p>
+              <div className="flex items-center gap-2">
 
-              <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-600">
+                  Calendrier sacré
+                </p>
+
+              </div>
+
+              <h2 className="mt-1 text-2xl font-black tracking-tight">
                 Événements bahá'ís
               </h2>
 
             </div>
 
-
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+            <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-amber-100 px-3 text-xs font-black text-amber-700">
               {selectedBahaiEvents.length}
             </span>
 
@@ -1415,14 +1195,14 @@ function CalendarPageContent() {
 
           {bahaiEventsLoading && (
 
-            <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+            <div className="rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-100">
 
-              <div className="text-3xl">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-2xl">
                 ⏳
               </div>
 
-              <p className="mt-3 text-sm text-slate-500">
-                Chargement des événements bahá'ís...
+              <p className="mt-3 text-sm font-medium text-slate-500">
+                Chargement...
               </p>
 
             </div>
@@ -1433,19 +1213,27 @@ function CalendarPageContent() {
           {!bahaiEventsLoading &&
             bahaiEventsError && (
 
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+              <div className="rounded-3xl border border-red-100 bg-red-50 p-6">
 
-                <div className="text-2xl">
-                  ⚠️
+                <div className="flex gap-4">
+
+                  <div className="text-2xl">
+                    ⚠️
+                  </div>
+
+                  <div>
+
+                    <h3 className="font-bold text-red-800">
+                      Impossible de charger les événements
+                    </h3>
+
+                    <p className="mt-1 text-sm leading-6 text-red-700">
+                      {bahaiEventsError}
+                    </p>
+
+                  </div>
+
                 </div>
-
-                <h3 className="mt-2 font-semibold text-red-800">
-                  Impossible de charger les événements bahá'ís
-                </h3>
-
-                <p className="mt-1 text-sm text-red-700">
-                  {bahaiEventsError}
-                </p>
 
               </div>
 
@@ -1456,17 +1244,17 @@ function CalendarPageContent() {
             !bahaiEventsError &&
             selectedBahaiEvents.length === 0 && (
 
-              <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
+              <div className="rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-100">
 
-                <div className="text-4xl">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 text-3xl">
                   🌿
                 </div>
 
-                <h3 className="mt-3 font-bold text-slate-900">
+                <h3 className="mt-4 font-black">
                   Aucun événement bahá'í
                 </h3>
 
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
                   Aucun événement bahá'í n'est prévu pour cette date.
                 </p>
 
@@ -1477,68 +1265,56 @@ function CalendarPageContent() {
 
           {!bahaiEventsLoading &&
             !bahaiEventsError &&
-            selectedBahaiEvents.length >
-              0 && (
+            selectedBahaiEvents.length > 0 && (
 
               <div className="space-y-3">
 
                 {selectedBahaiEvents.map(
-                  (event) => (
+                  event => (
 
                     <article
                       key={event.code}
                       className={`
-                        rounded-2xl border p-5 shadow-sm
+                        overflow-hidden rounded-3xl border p-5 shadow-sm
                         ${
                           event.is_holy_day
-                            ? "border-amber-200 bg-amber-50"
-                            : "border-emerald-100 bg-emerald-50"
+                            ? "border-amber-200 bg-linear-to-br from-amber-50 to-white"
+                            : "border-emerald-100 bg-white"
                         }
                       `}
                     >
 
                       <div className="flex gap-4">
 
-
-                        {/* ICÔNE */}
-
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">
-                          {event.icon ||
-                            "🌿"}
+                        <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm ring-1 ring-slate-100">
+                          {event.icon || "🌿"}
                         </div>
-
-
-                        {/* CONTENU */}
 
                         <div className="min-w-0 flex-1">
 
                           <div className="flex flex-wrap items-center gap-2">
 
-                            <h3 className="font-bold text-slate-900">
+                            <h3 className="font-black">
                               {event.name}
                             </h3>
 
-
                             {event.is_holy_day && (
 
-                              <span className="rounded-full bg-amber-200 px-2 py-1 text-[10px] font-bold text-amber-800">
+                              <span className="rounded-full bg-amber-200 px-2.5 py-1 text-[9px] font-black tracking-wide text-amber-800">
                                 JOUR SAINT
                               </span>
 
                             )}
 
+                            {event.event_type === "FEAST" && (
 
-                            {event.event_type ===
-                              "FEAST" && (
-
-                              <span className="rounded-full bg-emerald-200 px-2 py-1 text-[10px] font-bold text-emerald-800">
+                              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[9px] font-black tracking-wide text-emerald-700">
                                 FÊTE
                               </span>
 
                             )}
 
                           </div>
-
 
                           {event.description && (
 
@@ -1548,10 +1324,9 @@ function CalendarPageContent() {
 
                           )}
 
-
                           {event.work_suspension && (
 
-                            <div className="mt-3 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                            <div className="mt-3 inline-flex rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
                               🕊️ Suspension du travail
                             </div>
 
@@ -1573,28 +1348,33 @@ function CalendarPageContent() {
         </section>
 
 
-        {/* ===================================================
-            ACTIVITÉS DU JOUR
-        =================================================== */}
+        {/* ==================================================
+            DAILY ACTIVITIES
+        ================================================== */}
 
         <section className="mt-10">
 
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-5 flex items-end justify-between">
 
             <div>
 
-              <p className="text-sm font-medium uppercase tracking-[0.15em] text-slate-400">
-                Agenda
-              </p>
+              <div className="flex items-center gap-2">
 
-              <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                  Mon agenda
+                </p>
+
+              </div>
+
+              <h2 className="mt-1 text-2xl font-black tracking-tight">
                 Activités du jour
               </h2>
 
             </div>
 
-
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+            <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-emerald-100 px-3 text-xs font-black text-emerald-700">
               {selectedEvents.length}
             </span>
 
@@ -1603,14 +1383,14 @@ function CalendarPageContent() {
 
           {loading && (
 
-            <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+            <div className="rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-100">
 
               <div className="text-3xl">
                 ⏳
               </div>
 
               <p className="mt-3 text-sm text-slate-500">
-                Chargement des événements...
+                Chargement des activités...
               </p>
 
             </div>
@@ -1620,19 +1400,27 @@ function CalendarPageContent() {
 
           {!loading && error && (
 
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+            <div className="rounded-3xl border border-red-100 bg-red-50 p-6">
 
-              <div className="text-2xl">
-                ⚠️
+              <div className="flex gap-4">
+
+                <span className="text-2xl">
+                  ⚠️
+                </span>
+
+                <div>
+
+                  <h3 className="font-bold text-red-800">
+                    Impossible de charger les activités
+                  </h3>
+
+                  <p className="mt-1 text-sm text-red-700">
+                    {error}
+                  </p>
+
+                </div>
+
               </div>
-
-              <h2 className="mt-2 font-semibold text-red-800">
-                Impossible de charger les événements
-              </h2>
-
-              <p className="mt-1 text-sm text-red-700">
-                {error}
-              </p>
 
             </div>
 
@@ -1643,18 +1431,18 @@ function CalendarPageContent() {
             !error &&
             selectedEvents.length === 0 && (
 
-              <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
+              <div className="rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-100">
 
-                <div className="text-5xl">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-3xl">
                   📅
                 </div>
 
-                <h3 className="mt-4 text-lg font-bold text-slate-900">
-                  Aucune activité
+                <h3 className="mt-4 font-black">
+                  Journée libre
                 </h3>
 
                 <p className="mt-2 text-sm text-slate-500">
-                  Aucun événement n'est prévu pour cette date.
+                  Aucune activité n'est prévue pour cette date.
                 </p>
 
               </div>
@@ -1664,41 +1452,32 @@ function CalendarPageContent() {
 
           {!loading &&
             !error &&
-            selectedEvents.length >
-              0 && (
+            selectedEvents.length > 0 && (
 
               <div className="space-y-3">
 
                 {selectedEvents.map(
-                  (event) => (
+                  event => (
 
                     <article
                       key={`${event.source}-${event.id}`}
-                      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100"
+                      className="group rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-md"
                     >
 
                       <div className="flex gap-4">
 
-
-                        {/* HEURE */}
-
                         <div className="w-16 shrink-0">
 
-                          <p className="text-sm font-bold text-emerald-600">
+                          <p className="text-sm font-black text-emerald-600">
                             {formatTime(
                               event.start_time,
                             )}
                           </p>
 
-
                           {event.end_time && (
 
-                            <p className="mt-1 text-xs text-slate-400">
-                              →
-                              {" "}
-                              {formatTime(
-                                event.end_time,
-                              )}
+                            <p className="mt-1 text-xs font-medium text-slate-400">
+                              → {formatTime(event.end_time)}
                             </p>
 
                           )}
@@ -1706,27 +1485,22 @@ function CalendarPageContent() {
                         </div>
 
 
-                        {/* CONTENU */}
-
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 border-l border-slate-100 pl-4">
 
                           <div className="flex items-start justify-between gap-3">
 
-                            <h3 className="font-bold text-slate-900">
+                            <h3 className="font-black">
                               {event.title}
                             </h3>
 
-
                             <span
                               className={
-                                event.source ===
-                                "document"
-                                  ? "rounded-full bg-purple-100 px-2 py-1 text-[10px] font-semibold text-purple-700"
-                                  : "rounded-full bg-blue-100 px-2 py-1 text-[10px] font-semibold text-blue-700"
+                                event.source === "document"
+                                  ? "rounded-full bg-purple-100 px-2.5 py-1 text-[9px] font-black text-purple-700"
+                                  : "rounded-full bg-blue-100 px-2.5 py-1 text-[9px] font-black text-blue-700"
                               }
                             >
-                              {event.source ===
-                              "document"
+                              {event.source === "document"
                                 ? "DOCUMENT"
                                 : "PERSONNEL"}
                             </span>
@@ -1737,8 +1511,7 @@ function CalendarPageContent() {
                           {event.location && (
 
                             <p className="mt-2 text-sm text-slate-500">
-                              📍{" "}
-                              {event.location}
+                              📍 {event.location}
                             </p>
 
                           )}
@@ -1747,8 +1520,7 @@ function CalendarPageContent() {
                           {event.responsible && (
 
                             <p className="mt-1 text-sm text-slate-500">
-                              👤{" "}
-                              {event.responsible}
+                              👤 {event.responsible}
                             </p>
 
                           )}
@@ -1763,19 +1535,17 @@ function CalendarPageContent() {
                           )}
 
 
-                          {event.source ===
-                            "document" && (
+                          {event.source === "document" && (
 
-                            <div className="mt-3">
+                            <div className="mt-3 flex items-center gap-2">
 
-                              <span className="text-xs text-slate-400">
+                              <span className="text-[11px] text-slate-400">
                                 Confiance
                               </span>
 
-                              <span className="ml-2 text-xs font-semibold text-emerald-600">
+                              <span className="text-xs font-black text-emerald-600">
                                 {Math.round(
-                                  event.confidence *
-                                    100,
+                                  event.confidence * 100,
                                 )}
                                 %
                               </span>
@@ -1800,91 +1570,80 @@ function CalendarPageContent() {
         </section>
 
 
-        {/* ===================================================
-            PROCHAINS ÉVÉNEMENTS PERSONNELS
-        =================================================== */}
+        {/* ==================================================
+            UPCOMING PERSONAL
+        ================================================== */}
 
         {!loading &&
           !error &&
-          upcomingEvents.length >
-            0 && (
+          upcomingEvents.length > 0 && (
 
             <section className="mt-10">
 
               <div className="mb-5">
 
-                <p className="text-sm font-medium uppercase tracking-[0.15em] text-slate-400">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                   À venir
                 </p>
 
-                <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                <h2 className="mt-1 text-2xl font-black">
                   Prochains événements
                 </h2>
 
               </div>
 
-
               <div className="space-y-3">
 
                 {upcomingEvents.map(
-                  (event) => (
+                  event => (
 
                     <article
                       key={`${event.source}-upcoming-${event.id}`}
-                      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100"
+                      className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100"
                     >
 
                       <div className="flex items-center gap-4">
 
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl">
-                          {event.source ===
-                          "document"
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-xl">
+                          {event.source === "document"
                             ? "📄"
                             : "📅"}
                         </div>
-
 
                         <div className="min-w-0 flex-1">
 
                           <div className="flex flex-wrap items-center gap-2">
 
-                            <h3 className="font-semibold text-slate-900">
+                            <h3 className="font-bold">
                               {event.title}
                             </h3>
 
-
                             <span
                               className={
-                                event.source ===
-                                "document"
-                                  ? "rounded-full bg-purple-100 px-2 py-1 text-[10px] font-semibold text-purple-700"
-                                  : "rounded-full bg-blue-100 px-2 py-1 text-[10px] font-semibold text-blue-700"
+                                event.source === "document"
+                                  ? "rounded-full bg-purple-100 px-2 py-1 text-[9px] font-black text-purple-700"
+                                  : "rounded-full bg-blue-100 px-2 py-1 text-[9px] font-black text-blue-700"
                               }
                             >
-                              {event.source ===
-                              "document"
+                              {event.source === "document"
                                 ? "DOCUMENT"
                                 : "PERSONNEL"}
                             </span>
 
                           </div>
 
-
                           <p className="mt-1 text-sm text-slate-500">
-
-                            {formatDate(
-                              event.date,
-                            )}
-
+                            {formatDate(event.date)}
                             {event.start_time
-                              ? ` · ${formatTime(
-                                  event.start_time,
-                                )}`
+                              ? ` · ${formatTime(event.start_time)}`
                               : ""}
-
                           </p>
 
                         </div>
+
+                        <span className="text-slate-300">
+                          →
+                        </span>
 
                       </div>
 
@@ -1900,77 +1659,69 @@ function CalendarPageContent() {
           )}
 
 
-        {/* ===================================================
-            PROCHAINS ÉVÉNEMENTS BAHÁ'ÍS
-        =================================================== */}
+        {/* ==================================================
+            UPCOMING BAHÁ'Í
+        ================================================== */}
 
         {!bahaiEventsLoading &&
-          upcomingBahaiEvents.length >
-            0 && (
+          upcomingBahaiEvents.length > 0 && (
 
             <section className="mt-10">
 
               <div className="mb-5">
 
-                <p className="text-sm font-medium uppercase tracking-[0.15em] text-amber-500">
-                  Calendrier bahá'í
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-500">
+                  Calendrier sacré
                 </p>
 
-                <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                <h2 className="mt-1 text-2xl font-black">
                   Prochains événements bahá'ís
                 </h2>
 
               </div>
 
-
               <div className="space-y-3">
 
                 {upcomingBahaiEvents.map(
-                  (event) => (
+                  event => (
 
                     <article
                       key={`bahai-upcoming-${event.code}`}
                       className={`
-                        rounded-2xl border p-5 shadow-sm
+                        rounded-3xl border p-5 shadow-sm
                         ${
                           event.is_holy_day
                             ? "border-amber-200 bg-amber-50"
-                            : "border-emerald-100 bg-white"
+                            : "border-slate-100 bg-white"
                         }
                       `}
                     >
 
                       <div className="flex items-center gap-4">
 
-
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-xl shadow-sm">
-                          {event.icon ||
-                            "🌿"}
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-xl shadow-sm">
+                          {event.icon || "🌿"}
                         </div>
-
 
                         <div className="min-w-0 flex-1">
 
                           <div className="flex flex-wrap items-center gap-2">
 
-                            <h3 className="font-semibold text-slate-900">
+                            <h3 className="font-bold">
                               {event.name}
                             </h3>
 
-
                             {event.is_holy_day && (
 
-                              <span className="rounded-full bg-amber-200 px-2 py-1 text-[10px] font-bold text-amber-800">
+                              <span className="rounded-full bg-amber-200 px-2 py-1 text-[9px] font-black text-amber-800">
                                 JOUR SAINT
                               </span>
 
                             )}
 
+                            {event.event_type === "FEAST" && (
 
-                            {event.event_type ===
-                              "FEAST" && (
-
-                              <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                              <span className="rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700">
                                 FÊTE
                               </span>
 
@@ -1978,11 +1729,8 @@ function CalendarPageContent() {
 
                           </div>
 
-
                           <p className="mt-1 text-sm text-slate-500">
-                            {formatDate(
-                              event.date,
-                            )}
+                            {formatDate(event.date)}
                           </p>
 
                         </div>
@@ -2001,71 +1749,50 @@ function CalendarPageContent() {
           )}
 
 
-        {/* ===================================================
-            CALENDRIER BAHÁ'Í — AUJOURD'HUI
-        =================================================== */}
+        {/* ==================================================
+            BAHÁ'Í TODAY
+        ================================================== */}
 
-        <section className="mt-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <section className="relative mt-10 overflow-hidden rounded-4xl bg-slate-900 p-6 text-white shadow-xl shadow-slate-900/10 sm:p-7">
 
+          <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-emerald-500/20 blur-3xl" />
 
-          <div className="flex items-center gap-4">
-
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-2xl">
-              🌿
-            </div>
+          <div className="absolute -bottom-20 -left-20 h-48 w-48 rounded-full bg-amber-400/10 blur-3xl" />
 
 
-            <div>
+          <div className="relative">
 
-              <p className="text-sm font-medium uppercase tracking-[0.15em] text-slate-400">
-                Calendrier bahá'í
-              </p>
+            <div className="flex items-center gap-4">
 
-              <h2 className="mt-1 text-xl font-bold text-slate-900">
-                Aujourd'hui dans le calendrier bahá'í
-              </h2>
-
-            </div>
-
-          </div>
-
-
-          {/* CHARGEMENT */}
-
-          {bahaiCalendarLoading && (
-
-            <div className="mt-6 rounded-2xl bg-slate-50 p-6 text-center">
-
-              <div className="text-3xl">
-                ⏳
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-2xl backdrop-blur">
+                🌿
               </div>
 
-              <p className="mt-2 text-sm text-slate-500">
-                Calcul de la date bahá'íe...
-              </p>
+              <div>
+
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+                  Calendrier bahá'í
+                </p>
+
+                <h2 className="mt-1 text-xl font-black">
+                  Aujourd'hui
+                </h2>
+
+              </div>
 
             </div>
 
-          )}
 
+            {bahaiCalendarLoading && (
 
-          {/* ERREUR */}
-
-          {!bahaiCalendarLoading &&
-            bahaiCalendarError && (
-
-              <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+              <div className="mt-6 rounded-2xl bg-white/5 p-6 text-center">
 
                 <div className="text-2xl">
-                  ⚠️
+                  ⏳
                 </div>
 
-                <h3 className="mt-2 font-semibold text-red-800">
-                  Impossible de charger le calendrier
-                </h3>
-
-                <p className="mt-1 text-sm text-red-700">
-                  {bahaiCalendarError}
+                <p className="mt-2 text-sm text-slate-300">
+                  Calcul de la date bahá'íe...
                 </p>
 
               </div>
@@ -2073,148 +1800,148 @@ function CalendarPageContent() {
             )}
 
 
-          {/* DATE BAHÁ'ÍE */}
+            {!bahaiCalendarLoading &&
+              bahaiCalendarError && (
 
-          {!bahaiCalendarLoading &&
-            !bahaiCalendarError &&
-            bahaiDate && (
+                <div className="mt-6 rounded-2xl bg-red-500/10 p-5">
 
-              <div className="mt-6">
-
-
-                <div className="rounded-3xl bg-emerald-600 p-6 text-white">
-
-                  <p className="text-sm text-emerald-100">
-                    Année bahá'íe{" "}
-                    {bahaiDate.year}
+                  <p className="font-bold text-red-200">
+                    Impossible de charger le calendrier.
                   </p>
 
-
-                  <div className="mt-3 flex items-end gap-3">
-
-                    <span className="text-5xl font-bold">
-                      {bahaiDate.day}
-                    </span>
-
-
-                    <div className="pb-1">
-
-                      <p className="text-xl font-bold">
-                        {bahaiDate.month_name}
-                      </p>
-
-                      <p className="text-sm text-emerald-100">
-                        {bahaiDate.month_meaning}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-
-                  <p className="mt-4 text-sm text-emerald-100">
-                    {bahaiDate.day}ᵉ jour du mois de{" "}
-                    {bahaiDate.month_name}
+                  <p className="mt-1 text-sm text-red-300">
+                    {bahaiCalendarError}
                   </p>
 
                 </div>
 
-
-                {/* PROCHAIN ÉVÉNEMENT */}
-
-                {nextBahaiEvent && (
-
-                  <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
-
-                    <div className="flex items-start gap-4">
+              )}
 
 
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-2xl shadow-sm">
-                        {nextBahaiEvent.icon ||
-                          "🌿"}
-                      </div>
+            {!bahaiCalendarLoading &&
+              !bahaiCalendarError &&
+              bahaiDate && (
 
+                <div className="mt-6">
 
-                      <div className="min-w-0 flex-1">
+                  <div className="rounded-3xl bg-white/10 p-6 backdrop-blur">
 
-                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-                          Prochain événement bahá'í
+                    <p className="text-sm text-slate-400">
+                      Année bahá'íe {bahaiDate.year}
+                    </p>
+
+                    <div className="mt-3 flex items-end gap-4">
+
+                      <span className="text-6xl font-black leading-none">
+                        {bahaiDate.day}
+                      </span>
+
+                      <div className="pb-1">
+
+                        <p className="text-2xl font-black">
+                          {bahaiDate.month_name}
                         </p>
 
-
-                        <h3 className="mt-1 font-bold text-slate-900">
-                          {nextBahaiEvent.name}
-                        </h3>
-
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          {formatDate(
-                            nextBahaiEvent.date,
-                          )}
+                        <p className="text-sm text-emerald-300">
+                          {bahaiDate.month_meaning}
                         </p>
-
-
-                        {nextBahaiEvent.description && (
-
-                          <p className="mt-3 text-sm leading-6 text-slate-600">
-                            {nextBahaiEvent.description}
-                          </p>
-
-                        )}
-
-
-                        {nextBahaiEvent.work_suspension && (
-
-                          <div className="mt-3 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                            🕊️ Jour de suspension du travail
-                          </div>
-
-                        )}
 
                       </div>
 
                     </div>
 
+                    <p className="mt-5 text-sm text-slate-400">
+                      {bahaiDate.day}ᵉ jour du mois de{" "}
+                      {bahaiDate.month_name}
+                    </p>
+
                   </div>
 
-                )}
 
-              </div>
+                  {nextBahaiEvent && (
 
-            )}
+                    <div className="mt-4 rounded-3xl bg-white p-5 text-slate-900">
+
+                      <div className="flex gap-4">
+
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-xl">
+                          {nextBahaiEvent.icon || "🌿"}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">
+                            Prochain événement
+                          </p>
+
+                          <h3 className="mt-1 font-black">
+                            {nextBahaiEvent.name}
+                          </h3>
+
+                          <p className="mt-1 text-sm text-slate-500">
+                            {formatDate(
+                              nextBahaiEvent.date,
+                            )}
+                          </p>
+
+                          {nextBahaiEvent.description && (
+
+                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                              {nextBahaiEvent.description}
+                            </p>
+
+                          )}
+
+                          {nextBahaiEvent.work_suspension && (
+
+                            <span className="mt-3 inline-flex rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-700">
+                              🕊️ Suspension du travail
+                            </span>
+
+                          )}
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              )}
+
+          </div>
 
         </section>
 
 
-        {/* ===================================================
+        {/* ==================================================
             NOTIFICATIONS
-        =================================================== */}
+        ================================================== */}
 
         <section className="mt-10">
 
-
-          <div className="mb-5 flex items-center justify-between">
+          <div className="mb-5 flex items-end justify-between">
 
             <div>
 
-              <p className="text-sm font-medium uppercase tracking-[0.15em] text-slate-400">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
                 Rappels
               </p>
 
-              <h2 className="mt-1 text-2xl font-bold text-slate-900">
+              <h2 className="mt-1 text-2xl font-black">
                 Notifications
               </h2>
 
             </div>
 
-
             {unreadCount > 0 && (
 
-              <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">
+              <span className="rounded-full bg-red-100 px-3 py-1.5 text-xs font-black text-red-700">
                 {unreadCount} non lue
-                {unreadCount > 1
-                  ? "s"
-                  : ""}
+                {unreadCount > 1 ? "s" : ""}
               </span>
 
             )}
@@ -2222,18 +1949,16 @@ function CalendarPageContent() {
           </div>
 
 
-          {/* CHARGEMENT */}
-
           {notificationsLoading && (
 
-            <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
+            <div className="rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-100">
 
               <div className="text-2xl">
                 🔔
               </div>
 
               <p className="mt-2 text-sm text-slate-500">
-                Chargement des notifications...
+                Chargement...
               </p>
 
             </div>
@@ -2241,18 +1966,12 @@ function CalendarPageContent() {
           )}
 
 
-          {/* ERREUR */}
-
           {!notificationsLoading &&
             notificationsError && (
 
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+              <div className="rounded-3xl border border-red-100 bg-red-50 p-5">
 
-                <div className="text-2xl">
-                  ⚠️
-                </div>
-
-                <p className="mt-2 text-sm text-red-700">
+                <p className="text-sm font-medium text-red-700">
                   {notificationsError}
                 </p>
 
@@ -2261,24 +1980,22 @@ function CalendarPageContent() {
             )}
 
 
-          {/* AUCUNE NOTIFICATION */}
-
           {!notificationsLoading &&
             !notificationsError &&
             notifications.length === 0 && (
 
-              <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+              <div className="rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-100">
 
-                <div className="text-4xl">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-3xl">
                   🔕
                 </div>
 
-                <h3 className="mt-3 font-bold text-slate-900">
-                  Aucune notification
+                <h3 className="mt-4 font-black">
+                  Tout est calme
                 </h3>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Tu es à jour.
+                  Tu n'as aucune notification.
                 </p>
 
               </div>
@@ -2286,29 +2003,22 @@ function CalendarPageContent() {
             )}
 
 
-          {/* NOTIFICATIONS */}
-
           {!notificationsLoading &&
             !notificationsError &&
             notifications.length > 0 && (
 
               <div className="space-y-3">
 
-
-                {/* TOUT MARQUER COMME LU */}
-
                 {unreadCount > 0 && (
 
-                  <div className="mb-3 flex justify-end">
+                  <div className="flex justify-end">
 
                     <button
                       onClick={
                         handleMarkAllNotificationsAsRead
                       }
-                      disabled={
-                        markingAllRead
-                      }
-                      className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+                      disabled={markingAllRead}
+                      className="rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-black text-white transition hover:bg-slate-700 disabled:opacity-50"
                     >
                       {markingAllRead
                         ? "Traitement..."
@@ -2320,133 +2030,119 @@ function CalendarPageContent() {
                 )}
 
 
-                {/* LISTE */}
-
                 {notifications
                   .slice(0, 5)
-                  .map(
-                    (
-                      notification,
-                    ) => {
+                  .map(notification => {
 
-                      const isUnread =
-                        notification.status !==
-                        "READ";
+                    const isUnread =
+                      notification.status !== "READ";
 
 
-                      return (
+                    return (
 
-                        <article
-                          key={
-                            notification.id
+                      <article
+                        key={notification.id}
+                        className={`
+                          rounded-3xl border p-5 transition
+                          ${
+                            isUnread
+                              ? "border-emerald-200 bg-emerald-50/70"
+                              : "border-slate-100 bg-white"
                           }
-                          className={`
-                            rounded-2xl border p-5 transition
+                        `}
+                      >
+
+                        <div className="flex gap-4">
+
+                          <div className={`
+                            flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl
                             ${
                               isUnread
-                                ? "border-emerald-200 bg-emerald-50"
-                                : "border-slate-100 bg-white"
+                                ? "bg-white shadow-sm"
+                                : "bg-slate-100"
                             }
-                          `}
-                        >
-
-                          <div className="flex gap-4">
-
-
-                            {/* ICÔNE */}
-
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-xl shadow-sm">
-                              {isUnread
-                                ? "🔔"
-                                : "🔕"}
-                            </div>
+                          `}>
+                            {isUnread ? "🔔" : "✓"}
+                          </div>
 
 
-                            {/* CONTENU */}
+                          <div className="min-w-0 flex-1">
 
-                            <div className="min-w-0 flex-1">
+                            <div className="flex items-start gap-3">
 
-                              <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
 
-                                <div>
+                                <div className="flex items-center gap-2">
 
-                                  <h3 className="font-bold text-slate-900">
-                                    {
-                                      notification.title
-                                    }
+                                  <h3 className="font-black">
+                                    {notification.title}
                                   </h3>
 
+                                  {isUnread && (
 
-                                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                                    {
-                                      notification.message
-                                    }
-                                  </p>
+                                    <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+
+                                  )}
 
                                 </div>
 
-
-                                {isUnread && (
-
-                                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
-
-                                )}
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
+                                  {notification.message}
+                                </p>
 
                               </div>
-
-
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-
-                                {notification.event_source && (
-
-                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
-                                    {
-                                      notification.event_source
-                                    }
-                                  </span>
-
-                                )}
-
-
-                                <span className="text-xs text-slate-400">
-                                  {notification.scheduled_for
-                                    ? formatDate(
-                                        notification.scheduled_for.slice(
-                                          0,
-                                          10,
-                                        ),
-                                      )
-                                    : "Date non définie"}
-                                </span>
-
-                              </div>
-
-
-                              {isUnread && (
-
-                                <button
-                                  onClick={() =>
-                                    handleMarkNotificationAsRead(
-                                      notification.id,
-                                    )
-                                  }
-                                  className="mt-3 text-xs font-bold text-emerald-700 hover:text-emerald-900"
-                                >
-                                  ✓ Marquer comme lue
-                                </button>
-
-                              )}
 
                             </div>
 
+
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+
+                              {notification.event_source && (
+
+                                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500 ring-1 ring-slate-100">
+                                  {notification.event_source}
+                                </span>
+
+                              )}
+
+                              <span className="text-xs text-slate-400">
+                                {notification.scheduled_for
+                                  ? formatDate(
+                                      notification.scheduled_for.slice(
+                                        0,
+                                        10,
+                                      ),
+                                    )
+                                  : "Date non définie"}
+                              </span>
+
+                            </div>
+
+
+                            {isUnread && (
+
+                              <button
+                                onClick={() =>
+                                  handleMarkNotificationAsRead(
+                                    notification.id,
+                                  )
+                                }
+                                className="mt-3 text-xs font-black text-emerald-700 hover:text-emerald-900"
+                              >
+                                ✓ Marquer comme lue
+                              </button>
+
+                            )}
+
                           </div>
 
-                        </article>
+                        </div>
 
-                      );
+                      </article>
 
-                    },
-                  )}
+                    );
+
+                  })}
 
               </div>
 
@@ -2457,38 +2153,55 @@ function CalendarPageContent() {
       </div>
 
 
-      {/* =====================================================
-          NAVIGATION PWA
-      ===================================================== */}
+      {/* ====================================================
+          BOTTOM NAVIGATION
+      ==================================================== */}
 
       <BottomNavigation />
 
     </main>
 
   );
-
 }
 
+
+// ============================================================
+// PAGE
+// ============================================================
+
 export default function CalendarPage() {
+
   return (
+
     <Suspense
       fallback={
-        <main className="min-h-screen bg-slate-50 pb-24">
+
+        <main className="min-h-screen bg-[#f6f8f7] pb-24">
+
           <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4">
-            <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
-              <div className="text-3xl">
+
+            <div className="rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-100">
+
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-2xl">
                 📅
               </div>
 
-              <p className="mt-3 text-sm text-slate-500">
+              <p className="mt-4 text-sm font-medium text-slate-500">
                 Chargement du calendrier...
               </p>
+
             </div>
+
           </div>
+
         </main>
+
       }
     >
+
       <CalendarPageContent />
+
     </Suspense>
   );
+
 }

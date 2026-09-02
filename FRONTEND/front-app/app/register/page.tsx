@@ -54,37 +54,29 @@ export default function RegisterPage() {
     setError(null);
 
     if (!username.trim()) {
-      setError(
-        "Veuillez saisir votre nom d'utilisateur."
-      );
+      setError("Veuillez saisir votre nom d'utilisateur.");
       return;
     }
 
     if (!email.trim()) {
-      setError(
-        "Veuillez saisir votre adresse email."
-      );
+      setError("Veuillez saisir votre adresse email.");
       return;
     }
 
     if (!country) {
-      setError(
-        "Veuillez sélectionner votre pays."
-      );
+      setError("Veuillez sélectionner votre pays.");
       return;
     }
 
     if (password.length < 8) {
       setError(
-        "Le mot de passe doit contenir au moins 8 caractères."
+        "Le mot de passe doit contenir au moins 8 caractères.",
       );
       return;
     }
 
     if (password !== passwordConfirm) {
-      setError(
-        "Les mots de passe ne correspondent pas."
-      );
+      setError("Les mots de passe ne correspondent pas.");
       return;
     }
 
@@ -96,15 +88,12 @@ export default function RegisterPage() {
         email.trim(),
         password,
         passwordConfirm,
-        country
+        country,
       );
 
-      /*
-       * Connexion automatique après inscription.
-       */
       await login(
         username.trim(),
-        password
+        password,
       );
 
       router.replace("/");
@@ -114,7 +103,7 @@ export default function RegisterPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Impossible de créer le compte."
+          : "Impossible de créer le compte.",
       );
     } finally {
       setLoading(false);
@@ -122,42 +111,56 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-5 py-8">
+    <main className="relative min-h-screen overflow-hidden bg-[#f7f8f4] px-5 py-8">
 
-      <div className="mx-auto flex min-h-[90vh] max-w-md items-center">
+      {/* Décoration */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-emerald-200/30 blur-3xl" />
+        <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-amber-200/20 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto flex min-h-[92vh] max-w-md items-center">
 
         <div className="w-full">
 
-          {/* Logo / identité */}
+          {/* Identité */}
+          <div className="mb-7 text-center">
 
-          <div className="mb-8 text-center">
+            <div className="relative mx-auto flex h-20 w-20 items-center justify-center">
 
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-600 text-4xl shadow-lg">
-              ✨
+              <div className="absolute inset-0 rounded-[26px] bg-emerald-600/15 blur-md" />
+
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[26px] bg-emerald-700 text-3xl text-white shadow-xl shadow-emerald-900/10">
+                ✨
+              </div>
+
             </div>
 
-            <h1 className="mt-5 text-3xl font-bold text-slate-900">
+            <h1 className="mt-6 text-[30px] font-bold tracking-tight text-slate-900">
               Bahá'í Companion
             </h1>
 
-            <p className="mt-2 text-sm text-slate-500">
-              Créez votre compte et commencez
-              votre parcours avec Bahá'í Companion.
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-slate-500">
+              Commencez votre parcours spirituel
+              avec votre compagnon personnel.
             </p>
 
           </div>
 
-          {/* Formulaire */}
+          {/* Carte */}
+          <div className="rounded-[30px] border border-white/80 bg-white/90 p-6 shadow-[0_20px_60px_-25px_rgba(15,23,42,0.20)] backdrop-blur sm:p-8">
 
-          <div className="rounded-3xl bg-white p-6 shadow-sm sm:p-8">
+            <div className="mb-7">
 
-            <div className="mb-6">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-lg">
+                🌱
+              </div>
 
-              <h2 className="text-xl font-bold text-slate-900">
-                Créer un compte
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                Créer votre compte
               </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1.5 text-sm leading-6 text-slate-500">
                 Quelques informations pour commencer.
               </p>
 
@@ -169,7 +172,6 @@ export default function RegisterPage() {
             >
 
               {/* Username */}
-
               <div>
 
                 <label
@@ -189,13 +191,12 @@ export default function RegisterPage() {
                   autoComplete="username"
                   placeholder="Ex. belland"
                   disabled={loading}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                 />
 
               </div>
 
               {/* Email */}
-
               <div>
 
                 <label
@@ -215,13 +216,12 @@ export default function RegisterPage() {
                   autoComplete="email"
                   placeholder="vous@example.com"
                   disabled={loading}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                 />
 
               </div>
 
               {/* Pays */}
-
               <div>
 
                 <label
@@ -238,7 +238,7 @@ export default function RegisterPage() {
                     setCountry(event.target.value)
                   }
                   disabled={loading}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                 >
 
                   <option value="">
@@ -259,7 +259,6 @@ export default function RegisterPage() {
               </div>
 
               {/* Password */}
-
               <div>
 
                 <label
@@ -279,13 +278,12 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   placeholder="Minimum 8 caractères"
                   disabled={loading}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                 />
 
               </div>
 
               {/* Confirmation */}
-
               <div>
 
                 <label
@@ -301,27 +299,30 @@ export default function RegisterPage() {
                   value={passwordConfirm}
                   onChange={(event) =>
                     setPasswordConfirm(
-                      event.target.value
+                      event.target.value,
                     )
                   }
                   autoComplete="new-password"
                   placeholder="Répétez votre mot de passe"
                   disabled={loading}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                 />
 
               </div>
 
               {/* Erreur */}
-
               {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
 
-                  <div className="flex gap-2">
+                  <div className="flex items-start gap-3">
 
-                    <span>⚠️</span>
+                    <span className="mt-0.5">
+                      ⚠️
+                    </span>
 
-                    <p>{error}</p>
+                    <p className="leading-5">
+                      {error}
+                    </p>
 
                   </div>
 
@@ -329,11 +330,10 @@ export default function RegisterPage() {
               )}
 
               {/* Bouton */}
-
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-2xl bg-emerald-700 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-900/10 transition-all hover:bg-emerald-800 active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading
                   ? "Création du compte..."
@@ -344,9 +344,8 @@ export default function RegisterPage() {
 
           </div>
 
-          {/* Login */}
-
-          <div className="mt-6 text-center">
+          {/* Connexion */}
+          <div className="mt-7 text-center">
 
             <p className="text-sm text-slate-500">
 
@@ -354,7 +353,7 @@ export default function RegisterPage() {
 
               <Link
                 href="/login"
-                className="font-semibold text-emerald-600 transition hover:text-emerald-700"
+                className="font-bold text-emerald-700 transition hover:text-emerald-800"
               >
                 Se connecter
               </Link>
@@ -363,6 +362,10 @@ export default function RegisterPage() {
 
           </div>
 
+          <p className="mt-8 text-center text-xs text-slate-400">
+            Un espace pour grandir, apprendre et cheminer.
+          </p>
+
         </div>
 
       </div>
@@ -370,4 +373,3 @@ export default function RegisterPage() {
     </main>
   );
 }
-
