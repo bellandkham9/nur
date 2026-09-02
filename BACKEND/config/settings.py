@@ -523,10 +523,16 @@ STATICFILES_DIRS = [
 
 MEDIA_URL = "/media/"
 
-if os.environ.get("RENDER"):
-    MEDIA_ROOT = "/tmp/nur_media"
-else:
-    MEDIA_ROOT = BASE_DIR / "media"
+# ==========================================================
+# MEDIA FILES
+# ==========================================================
+
+MEDIA_ROOT = BASE_DIR / "media"
+
+# if os.environ.get("RENDER"):
+#     MEDIA_ROOT = "/tmp/nur_media"
+# else:
+#     MEDIA_ROOT = BASE_DIR / "media"
 
 # ==========================================================
 # VAPID / WEB PUSH
