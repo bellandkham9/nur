@@ -687,7 +687,7 @@ export default function EventsPage() {
       {/* MODALE CRÉATION / MODIFICATION */}
 
       {showForm && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 sm:items-center sm:p-5">
+        <div className="fixed inset-0 z-100 flex items-end justify-center bg-black/40 sm:items-center sm:p-5">
           <div className="max-h-[95vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl sm:max-w-2xl sm:rounded-3xl">
             {/* HEADER */}
 
@@ -925,7 +925,7 @@ export default function EventsPage() {
                           Number(e.target.value),
                         )
                       }
-                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3"
+                      className="mt-2 w-full text-slate-700 rounded-xl border border-slate-300 bg-white px-4 py-3"
                     >
                       <option value={1}>
                         1 minute avant

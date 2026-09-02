@@ -141,9 +141,9 @@ export default function QuizPage() {
           </div>
 
           <div className="relative mx-auto mb-6 w-fit">
-            <div className="absolute inset-0 rounded-[2rem] bg-emerald-300/30 blur-xl" />
+            <div className="absolute inset-0 rounded-4xl bg-emerald-300/30 blur-xl" />
 
-            <div className="relative flex h-24 w-24 items-center justify-center rounded-[2rem] border-4 border-white bg-linear-to-br from-emerald-400 to-emerald-600 text-5xl shadow-[0_10px_0_#159447]">
+            <div className="relative flex h-24 w-24 items-center justify-center rounded-4xl border-4 border-white bg-linear-to-br from-emerald-400 to-emerald-600 text-5xl shadow-[0_10px_0_#159447]">
               🧠
             </div>
           </div>

@@ -336,13 +336,13 @@ HEADER
         PROFIL UTILISATEUR
     ==================================================== */}
 
-    <section className="relative overflow-hidden rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <section className="relative overflow-hidden rounded-4xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-50" />
 
       <div className="relative flex items-center gap-4 sm:gap-5">
         {/* Avatar */}
 
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-3xl font-bold text-white shadow-lg shadow-emerald-200 sm:h-24 sm:w-24 sm:text-4xl">
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-emerald-500 to-teal-600 text-3xl font-bold text-white shadow-lg shadow-emerald-200 sm:h-24 sm:w-24 sm:text-4xl">
           {loadingUser ? (
             <span className="h-7 w-7 animate-spin rounded-full border-2 border-white/40 border-t-white" />
           ) : (
@@ -495,10 +495,10 @@ HEADER
         </h2>
       </div>
 
-      <div className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200">
+      <div className="overflow-hidden rounded-4xl bg-white shadow-sm ring-1 ring-slate-200">
         {/* Top */}
 
-        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white">
+        <div className="bg-linear-to-r from-indigo-600 to-violet-600 p-6 text-white">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-indigo-100">
@@ -747,7 +747,7 @@ HEADER
         INFORMATIONS SUPPLÉMENTAIRES
     ==================================================== */}
 
-    <section className="mt-8 rounded-[2rem] bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white shadow-lg shadow-emerald-100">
+    <section className="mt-8 rounded-4xl bg-linear-to-br from-emerald-600 to-teal-700 p-6 text-white shadow-lg shadow-emerald-100">
       <div className="flex items-start gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl">
           🌿

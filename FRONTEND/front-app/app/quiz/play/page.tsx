@@ -9,14 +9,14 @@ function QuizLoading() {
     <main className="flex min-h-screen items-center justify-center bg-[#f5faf7] px-5">
       <div className="w-full max-w-sm">
         <div className="relative mx-auto mb-7 h-28 w-28">
-          <div className="absolute inset-0 animate-ping rounded-[2rem] bg-emerald-100 opacity-70" />
+          <div className="absolute inset-0 animate-ping rounded-4xl bg-emerald-100 opacity-70" />
 
-          <div className="relative flex h-28 w-28 items-center justify-center rounded-[2rem] border-4 border-white bg-linear-to-br from-emerald-400 to-emerald-600 text-6xl shadow-[0_8px_0_#159447]">
+          <div className="relative flex h-28 w-28 items-center justify-center rounded-4xl border-4 border-white bg-linear-to-br from-emerald-400 to-emerald-600 text-6xl shadow-[0_8px_0_#159447]">
             🧠
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-slate-100 bg-white p-7 text-center shadow-xl">
+        <div className="rounded-4xl border border-slate-100 bg-white p-7 text-center shadow-xl">
           <div className="mx-auto mb-4 flex items-center justify-center gap-1">
             <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 [animation-delay:-0.3s]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-emerald-500 [animation-delay:-0.15s]" />

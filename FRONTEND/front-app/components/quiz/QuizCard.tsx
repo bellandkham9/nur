@@ -164,14 +164,14 @@ export default function QuizCard({
           QUESTION CARD
       ====================================================== */}
 
-      <article className="overflow-hidden rounded-[2rem] border border-white bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+      <article className="overflow-hidden rounded-4xl border border-white bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
         {/* ==================================================
             IMAGE
         ================================================== */}
 
         {hasImage && (
           <div className="relative overflow-hidden bg-slate-100">
-            <div className="relative aspect-[16/9] max-h-[420px] w-full sm:aspect-[2/1]">
+            <div className="relative aspect-video max-h-105 w-full sm:aspect-2/1">
               <img
                 src={question.image_url!}
                 alt=""
@@ -333,7 +333,7 @@ export default function QuizCard({
 
       {result && (
         <section
-          className={`overflow-hidden rounded-[2rem] border shadow-sm ${
+          className={`overflow-hidden rounded-4xl border shadow-sm ${
             result.correct
               ? "border-emerald-200 bg-emerald-50"
               : "border-red-200 bg-red-50"

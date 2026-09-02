@@ -583,14 +583,14 @@ export default function QuizPlayPage() {
       <main className="flex min-h-screen items-center justify-center bg-[#f5faf7] px-5">
         <div className="w-full max-w-sm text-center">
           <div className="relative mx-auto mb-7 h-24 w-24">
-            <div className="absolute inset-0 animate-ping rounded-[2rem] bg-emerald-100 opacity-70" />
+            <div className="absolute inset-0 animate-ping rounded-4xl bg-emerald-100 opacity-70" />
 
-            <div className="relative flex h-24 w-24 items-center justify-center rounded-[2rem] border-4 border-white bg-linear-to-br from-emerald-400 to-emerald-600 text-5xl shadow-[0_7px_0_#159447]">
+            <div className="relative flex h-24 w-24 items-center justify-center rounded-4xl border-4 border-white bg-linear-to-br from-emerald-400 to-emerald-600 text-5xl shadow-[0_7px_0_#159447]">
               🧠
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-7 shadow-xl">
+          <div className="rounded-4xl border border-slate-100 bg-white p-7 shadow-xl">
             <h1 className="text-xl font-black text-slate-950">
               Préparation du quiz...
             </h1>
@@ -615,8 +615,8 @@ export default function QuizPlayPage() {
   if (error) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f5faf7] px-5 py-10">
-        <div className="w-full max-w-lg rounded-[2rem] border border-red-100 bg-white p-7 shadow-xl sm:p-9">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-red-50 text-4xl">
+        <div className="w-full max-w-lg rounded-4xl border border-red-100 bg-white p-7 shadow-xl sm:p-9">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-4xl bg-red-50 text-4xl">
             😕
           </div>
 
@@ -705,7 +705,7 @@ export default function QuizPlayPage() {
             <div className="relative mx-auto mb-6 w-fit">
               <div className="absolute inset-0 rounded-full bg-amber-200/60 blur-2xl" />
 
-              <div className="relative flex h-28 w-28 animate-bounce items-center justify-center rounded-[2rem] border-4 border-white bg-linear-to-br from-amber-100 to-yellow-50 text-6xl shadow-xl">
+              <div className="relative flex h-28 w-28 animate-bounce items-center justify-center rounded-4xl border-4 border-white bg-linear-to-br from-amber-100 to-yellow-50 text-6xl shadow-xl">
                 🏆
               </div>
             </div>
@@ -724,7 +724,7 @@ export default function QuizPlayPage() {
           </section>
 
           {/* RESULT CARD */}
-          <div className="overflow-hidden rounded-[2rem] border border-white bg-white/90 p-4 shadow-2xl backdrop-blur sm:p-8">
+          <div className="overflow-hidden rounded-4xl border border-white bg-white/90 p-4 shadow-2xl backdrop-blur sm:p-8">
             <QuizResult
               session={session}
               progress={progress}
@@ -757,7 +757,7 @@ export default function QuizPlayPage() {
   if (!currentQuestion) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f5faf7] px-5">
-        <div className="rounded-[2rem] border border-slate-100 bg-white p-8 text-center shadow-xl">
+        <div className="rounded-4xl border border-slate-100 bg-white p-8 text-center shadow-xl">
           <div className="text-5xl">🤔</div>
 
           <p className="mt-4 font-black text-slate-800">
@@ -868,7 +868,7 @@ export default function QuizPlayPage() {
         ====================================================== */}
 
         <header className="mb-5">
-          <div className="rounded-[2rem] border border-white bg-white/90 p-4 shadow-lg backdrop-blur sm:p-5">
+          <div className="rounded-4xl border border-white bg-white/90 p-4 shadow-lg backdrop-blur sm:p-5">
             <div className="flex items-center gap-4">
               {/* QUESTION NUMBER */}
               <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -907,7 +907,7 @@ export default function QuizPlayPage() {
 
               {/* TIMER */}
               <div
-                className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition-all sm:h-[72px] sm:w-[72px] ${
+                className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition-all sm:h-18 sm:w-18 ${
                   timerDanger
                     ? "bg-red-50"
                     : "bg-slate-50"
@@ -1062,7 +1062,7 @@ export default function QuizPlayPage() {
         {showCorrectCelebration &&
           answerResult?.correct && (
             <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center px-5">
-              <div className="animate-quiz-pop w-full max-w-xs rounded-[2rem] border-4 border-emerald-100 bg-white p-7 text-center shadow-2xl">
+              <div className="animate-quiz-pop w-full max-w-xs rounded-4xl border-4 border-emerald-100 bg-white p-7 text-center shadow-2xl">
                 <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-5xl">
                   🎉
                 </div>

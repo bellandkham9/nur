@@ -552,9 +552,9 @@ HEADER
     =================================================== */}
 
     {loading && (
-      <section className="rounded-[2rem] bg-white p-8 shadow-sm ring-1 ring-slate-200 sm:p-10">
+      <section className="rounded-4xl bg-white p-8 shadow-sm ring-1 ring-slate-200 sm:p-10">
         <div className="mx-auto max-w-sm text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-4xl bg-emerald-50">
             <span className="text-3xl">
               🔔
             </span>
@@ -577,9 +577,9 @@ HEADER
     =================================================== */}
 
     {!loading && error && (
-      <section className="overflow-hidden rounded-[2rem] border border-red-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-4xl border border-red-200 bg-white shadow-sm">
         <div className="bg-red-50 p-6 sm:p-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-2xl">
+          <div className="flex h-14 w-14 items-center justify-center rounded-4xl bg-red-100 text-2xl">
             ⚠️
           </div>
 
@@ -611,9 +611,9 @@ HEADER
     {!loading &&
       !error &&
       notifications.length === 0 && (
-        <section className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200">
+        <section className="overflow-hidden rounded-4xl bg-white shadow-sm ring-1 ring-slate-200">
           <div className="px-6 py-12 text-center sm:px-10 sm:py-16">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-50 text-4xl">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-4xl bg-emerald-50 text-4xl">
               🔕
             </div>
 
@@ -892,9 +892,9 @@ HEADER
     {!loading &&
       !error &&
       notifications.length > 0 && (
-        <section className="mt-8 overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white shadow-lg shadow-emerald-100">
+        <section className="mt-8 overflow-hidden rounded-4xl bg-linear-to-br from-emerald-600 to-teal-700 p-6 text-white shadow-lg shadow-emerald-100">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-4xl bg-white/15 text-2xl">
               🌿
             </div>
 

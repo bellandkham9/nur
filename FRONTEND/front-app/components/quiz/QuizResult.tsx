@@ -157,14 +157,14 @@ export default function QuizResult({
             HERO RESULT
         ==================================================== */}
 
-        <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 shadow-xl sm:rounded-[2.5rem]">
+        <section className="relative overflow-hidden rounded-4xl bg-slate-950 shadow-xl sm:rounded-[2.5rem]">
 
 
           {/* BACKGROUND */}
 
           <div className="absolute inset-0">
 
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-800" />
+            <div className="absolute inset-0 bg-linear-to-br from-emerald-500 via-emerald-600 to-teal-800" />
 
             <div className="absolute -left-20 top-0 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
 
@@ -193,7 +193,7 @@ export default function QuizResult({
 
             {/* TROPHY */}
 
-            <div className="relative mx-auto mt-6 flex h-24 w-24 items-center justify-center rounded-[2rem] border border-white/30 bg-white/15 text-6xl shadow-2xl backdrop-blur-md sm:h-28 sm:w-28 sm:text-7xl">
+            <div className="relative mx-auto mt-6 flex h-24 w-24 items-center justify-center rounded-4xl border border-white/30 bg-white/15 text-6xl shadow-2xl backdrop-blur-md sm:h-28 sm:w-28 sm:text-7xl">
 
               {emoji}
 
@@ -503,7 +503,7 @@ export default function QuizResult({
 
 
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-600 transition-all duration-1000"
+                  className="h-full rounded-full bg-linear-to-r from-emerald-400 via-emerald-500 to-teal-600 transition-all duration-1000"
                   style={{
                     width: `${safeAccuracy}%`,
                   }}
@@ -567,7 +567,7 @@ export default function QuizResult({
 
           {progress && (
 
-            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-700 p-5 text-white shadow-lg sm:p-7">
+            <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-emerald-600 to-teal-700 p-5 text-white shadow-lg sm:p-7">
 
 
               {/* DECOR */}
