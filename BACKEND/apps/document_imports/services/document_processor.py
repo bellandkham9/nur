@@ -106,14 +106,9 @@ class DocumentProcessor:
             if extractor is None:
 
                 raise ValueError(
-                    "Aucun extracteur disponible pour "
-                    f"le fichier : "
+                    "Format de document non supporté : "
                     f"{document.original_name}"
                 )
-
-            # --------------------------------------------------
-            # EXTRACTION BRUTE
-            # --------------------------------------------------
 
             result = extractor.extract(
                 file_path
@@ -126,10 +121,6 @@ class DocumentProcessor:
                     or
                     "Erreur inconnue pendant l'extraction."
                 )
-
-            # --------------------------------------------------
-            # SAUVEGARDE
-            # --------------------------------------------------
 
             with transaction.atomic():
 
@@ -149,23 +140,38 @@ class DocumentProcessor:
                     ]
                 )
 
-            # --------------------------------------------------
+            # ==============================================
             # DÉTECTION DES ÉVÉNEMENTS
-            # --------------------------------------------------
+            # ==============================================
 
-            EventDetector().analyze_document(
-                document.id
-            )
+            detector_error = ""
 
-            # --------------------------------------------------
+            try:
+
+                EventDetector().analyze_document(
+                    document.id
+                )
+
+            except Exception as exc:
+
+                detector_error = (
+                    "Extraction terminée, "
+                    "mais erreur pendant la "
+                    "détection des événements : "
+                    f"{exc}"
+                )
+
+            # ==============================================
             # DOCUMENT TERMINÉ
-            # --------------------------------------------------
+            # ==============================================
 
             document.status = (
                 DocumentImport.Status.COMPLETED
             )
 
-            document.error_message = ""
+            document.error_message = (
+                detector_error
+            )
 
             document.save(
                 update_fields=[
@@ -185,7 +191,6 @@ class DocumentProcessor:
             )
 
             raise
-
     # ==========================================================
     # CHEMIN DU FICHIER
     # ==========================================================
@@ -307,142 +312,232 @@ class DocumentProcessor:
                 [],
             )
 
-            # --------------------------------------------------
+            # ==================================================
             # ANALYSE DU SCHÉMA
-            # --------------------------------------------------
+            # ==================================================
 
             schema_analysis = (
                 self.schema_analyzer.analyze(
-                    headers
+                    headers=headers,
+                    rows=rows,
                 )
             )
 
-            # --------------------------------------------------
-            # TRAITEMENT DES LIGNES
-            # --------------------------------------------------
+            # ==================================================
+            # COLONNES ANALYSÉES
+            # ==================================================
 
-            processed_rows = []
+            columns = []
 
-            for row in rows:
+            for column in schema_analysis.columns:
 
-                assignments = (
-                    self.schema_analyzer.assign_row(
-                        headers=headers,
-                        row=row,
-                    )
-                )
-
-                extracted_fields = {
-                    field_name: assignment.value
-                    for field_name, assignment
-                    in assignments.items()
-                }
-
-                # --------------------------------------------------
-                # CONTRÔLE DE COHÉRENCE + CONFIANCE
-                # --------------------------------------------------
-
-                confidence_result = (
-                    self.confidence_engine.evaluate(
-                        extracted_fields=(
-                            extracted_fields
-                        ),
-                        assignments=assignments,
-                    )
-                )
-
-                processed_rows.append(
-                    {
-                        "fields": extracted_fields,
-
-                        "assignments": {
-                            field_name: {
-                                "value": assignment.value,
-                                "confidence": (
-                                    assignment.confidence
-                                ),
-                                "reason": (
-                                    assignment.reason
-                                ),
-                                "source_header": (
-                                    assignment.source_header
-                                ),
-                            }
-
-                            for field_name, assignment
-                            in assignments.items()
-                        },
-
-                        "confidence": (
-                            confidence_result.confidence
-                        ),
-
-                        "confidence_level": (
-                            confidence_result.level
-                        ),
-
-                        "reliable": (
-                            confidence_result.reliable
-                        ),
-
-                        "confidence_reasons": (
-                            confidence_result.reasons
-                        ),
-                    }
-                )
-
-            # --------------------------------------------------
-            # MÉTADONNÉES DU SCHÉMA
-            # --------------------------------------------------
-
-            schema_data = {
-                "columns": [
+                columns.append(
                     {
                         "index": column.index,
-
-                        "original_header": (
-                            column.original_header
-                        ),
+                        "original_header": str(
+                            column.header
+                        )
+                        if column.header is not None
+                        else "",
 
                         "normalized_header": (
                             column.normalized_header
                         ),
 
-                        "field": (
-                            column.field
-                        ),
+                        "field": column.field,
 
                         "confidence": (
                             column.confidence
                         ),
 
-                        "reason": (
-                            column.reason
+                        "reason": column.reason,
+
+                        "sample_values": [
+                            str(value)
+                            for value
+                            in column.sample_values
+                        ],
+
+                        "detected_types": (
+                            column.detected_types
+                        ),
+
+                        "ambiguous": (
+                            column.ambiguous
                         ),
                     }
+                )
 
-                    for column
-                    in schema_analysis.columns
-                ],
+            # ==================================================
+            # ANALYSE DES LIGNES
+            # ==================================================
 
-                "recognized_fields": (
-                    schema_analysis.recognized_fields
+            processed_rows = []
+
+            for row_index, row in enumerate(
+                rows,
+                start=1,
+            ):
+
+                extracted_fields = {}
+
+                confidence_fields = {}
+
+                for column in schema_analysis.columns:
+
+                    if column.field is None:
+                        continue
+
+                    value = ""
+
+                    if column.index < len(row):
+
+                        value = row[
+                            column.index
+                        ]
+
+                    extracted_fields[
+                        column.field
+                    ] = value
+
+                    confidence_fields[
+                        column.field
+                    ] = {
+                        "value": value,
+
+                        "assignment_confidence": (
+                            column.confidence
+                        ),
+
+                        "header_confidence": (
+                            column.confidence
+                        ),
+
+                        "value_confidence": (
+                            1.0
+                            if value not in (
+                                None,
+                                "",
+                            )
+                            else 0.0
+                        ),
+
+                        "consistency_confidence": (
+                            1.0
+                        ),
+
+                        "consistency_ok": True,
+
+                        "reasons": [
+                            column.reason
+                        ],
+                    }
+
+                confidence_result = (
+                    self.confidence_engine
+                    .evaluate_extraction(
+                        confidence_fields
+                    )
+                )
+
+                processed_rows.append(
+                    {
+                        "row_index": row_index,
+
+                        "fields": (
+                            extracted_fields
+                        ),
+
+                        "confidence": (
+                            confidence_result
+                            .global_confidence
+                        ),
+
+                        "accepted": (
+                            confidence_result
+                            .accepted
+                        ),
+
+                        "warnings": (
+                            confidence_result
+                            .warnings
+                        ),
+
+                        "field_confidence": {
+                            field_name: {
+                                "value": (
+                                    field.value
+                                ),
+
+                                "confidence": (
+                                    field.confidence
+                                ),
+
+                                "accepted": (
+                                    field.accepted
+                                ),
+
+                                "reasons": (
+                                    field.reasons
+                                ),
+                            }
+
+                            for (
+                                field_name,
+                                field,
+                            )
+                            in confidence_result
+                            .fields.items()
+                        },
+                    }
+                )
+
+            # ==================================================
+            # MÉTADONNÉES DU SCHÉMA
+            # ==================================================
+
+            schema_data = {
+
+                "columns": columns,
+
+                "field_to_columns": (
+                    schema_analysis
+                    .field_to_columns
                 ),
 
-                "unknown_columns": (
-                    schema_analysis.unknown_columns
+                "unresolved_columns": (
+                    schema_analysis
+                    .unresolved_columns
                 ),
 
-                "duplicate_fields": (
-                    schema_analysis.duplicate_fields
+                "ambiguous_columns": (
+                    schema_analysis
+                    .ambiguous_columns
                 ),
 
-                "processed_rows": processed_rows,
+                "confidence": (
+                    schema_analysis
+                    .confidence
+                ),
+
+                "structure_type": (
+                    schema_analysis
+                    .structure_type
+                ),
+
+                "warnings": (
+                    schema_analysis
+                    .warnings
+                ),
+
+                "processed_rows": (
+                    processed_rows
+                ),
             }
 
-            # --------------------------------------------------
-            # CONSERVATION DES DONNÉES ORIGINALES
-            # --------------------------------------------------
+            # ==================================================
+            # DONNÉES ORIGINALES
+            # ==================================================
 
             raw_data = table.get(
                 "raw_data",
@@ -455,7 +550,7 @@ class DocumentProcessor:
             ):
 
                 raw_data = {
-                    "original": raw_data
+                    "original": raw_data,
                 }
 
             raw_data = {
@@ -465,12 +560,14 @@ class DocumentProcessor:
 
                 "original_rows": rows,
 
-                "schema_analysis": schema_data,
+                "schema_analysis": (
+                    schema_data
+                ),
             }
 
-            # --------------------------------------------------
+            # ==================================================
             # SAUVEGARDE
-            # --------------------------------------------------
+            # ==================================================
 
             ExtractedTable.objects.create(
                 page=page,
@@ -486,7 +583,6 @@ class DocumentProcessor:
 
                 raw_data=raw_data,
             )
-
     # ==========================================================
     # IMAGES
     # ==========================================================

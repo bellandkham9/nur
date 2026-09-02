@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from pathlib import Path
 from .models import (
     DocumentImport,
     DocumentPage,
@@ -45,33 +45,33 @@ class DocumentImportSerializer(serializers.ModelSerializer):
         original_name = uploaded_file.name
 
         extension = (
-            original_name
+            Path(original_name)
+            .suffix
             .lower()
-            .split(".")[-1]
         )
 
         document_types = {
-            "pdf": DocumentImport.DocumentType.PDF,
-            "docx": DocumentImport.DocumentType.DOCX,
-            "xlsx": DocumentImport.DocumentType.XLSX,
-            "jpg": DocumentImport.DocumentType.IMAGE,
-            "jpeg": DocumentImport.DocumentType.IMAGE,
-            "png": DocumentImport.DocumentType.IMAGE,
-            "webp": DocumentImport.DocumentType.IMAGE,
+            ".pdf": DocumentImport.DocumentType.PDF,
+            ".docx": DocumentImport.DocumentType.DOCX,
+            ".xlsx": DocumentImport.DocumentType.XLSX,
+            ".jpg": DocumentImport.DocumentType.IMAGE,
+            ".jpeg": DocumentImport.DocumentType.IMAGE,
+            ".png": DocumentImport.DocumentType.IMAGE,
+            ".webp": DocumentImport.DocumentType.IMAGE,
         }
 
-        document_type = document_types.get(
-            extension,
-            DocumentImport.DocumentType.UNKNOWN,
+        validated_data["original_name"] = original_name
+
+        validated_data["document_type"] = (
+            document_types.get(
+                extension,
+                DocumentImport.DocumentType.UNKNOWN,
+            )
         )
 
-        instance = DocumentImport.objects.create(
-            file=uploaded_file,
-            original_name=original_name,
-            document_type=document_type,
+        return DocumentImport.objects.create(
+            **validated_data
         )
-
-        return instance
 
 
 class DocumentPageSerializer(serializers.ModelSerializer):
