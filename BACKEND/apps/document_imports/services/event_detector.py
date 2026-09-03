@@ -437,20 +437,17 @@ class EventDetector:
 
         joined = " ".join(normalized_values)
 
-        # --------------------------------------------------------
-        # Mots-clés explicites
-        # --------------------------------------------------------
-
-        for keyword in cls.STATISTIC_KEYWORDS:
-            if cls.normalize(keyword) in normalized_values:
-                return True
+        # ========================================================
+        # IMPORTANT :
+        # "PLAN" seul n'est PAS une statistique.
+        # Dans nos fichiers Excel, PLAN marque une activité planifiée.
+        # ========================================================
 
         # --------------------------------------------------------
-        # Total / budget / indicateurs
+        # REALISATION / ECART
         # --------------------------------------------------------
 
         if normalized_values[0] in {
-            "plan",
             "realisation",
             "réalisation",
             "ecart",
@@ -458,45 +455,95 @@ class EventDetector:
         }:
             return True
 
+        # --------------------------------------------------------
+        # TOTAL
+        # --------------------------------------------------------
+
         if joined.startswith("total "):
             return True
 
-        if "detail du budget" in joined:
-            return True
+        # --------------------------------------------------------
+        # BUDGET
+        # --------------------------------------------------------
 
-        if "détail du budget" in joined:
+        if (
+            "detail du budget" in joined
+            or "détail du budget" in joined
+        ):
             return True
 
         # --------------------------------------------------------
-        # Ligne purement numérique / tableau statistique
+        # MOTS-CLÉS STATISTIQUES EXPLICITES
+        # --------------------------------------------------------
+
+        statistical_labels = {
+            "nombre",
+            "population",
+            "population baha",
+            "population baha'ie",
+            "mouvement des quartiers",
+            "groupe de famille",
+            "tuteurs",
+            "animateurs gp",
+            "maitre de classes",
+            "maîtres de classes",
+            "hotes des rd",
+            "cercle d'étude",
+            "cercle d etude",
+            "nouvelle ressource",
+            "membre de l'asl",
+            "libelles",
+            "prix unitaire",
+            "prix total",
+        }
+
+        # On ne considère comme statistique que lorsque le label
+        # est réellement une cellule descriptive de statistique.
+        for value in normalized_values:
+            if value in statistical_labels:
+                return True
+
+        # --------------------------------------------------------
+        # CAS "NOMBRE DE ..."
+        # --------------------------------------------------------
+
+        first = normalized_values[0]
+
+        if first.startswith("nombre de "):
+            return True
+
+        # --------------------------------------------------------
+        # LIGNES PUREMENT NUMÉRIQUES
         # --------------------------------------------------------
 
         numeric_count = 0
         text_count = 0
 
         for value in values:
-            compact = value.replace(" ", "").replace(",", ".")
 
-            if re.fullmatch(r"-?\d+(?:\.\d+)?", compact):
+            compact = (
+                cls.normalize(value)
+                .replace(" ", "")
+                .replace(",", ".")
+            )
+
+            if re.fullmatch(
+                r"-?\d+(?:\.\d+)?",
+                compact
+            ):
                 numeric_count += 1
             else:
                 text_count += 1
 
-        if numeric_count >= 3 and numeric_count >= text_count:
-            return True
-
-        # --------------------------------------------------------
-        # Certaines lignes de statistiques sont du texte
-        # --------------------------------------------------------
-
-        if re.search(
-            r"\bnombre\b.*\b(?:105|60|50|45|40|35)\b",
-            joined
+        # Tableau statistique :
+        # plusieurs nombres et très peu de texte.
+        if (
+            numeric_count >= 3
+            and numeric_count > text_count
         ):
             return True
 
         return False
-
     # ============================================================
     # ACTIVITÉ
     # ============================================================
@@ -873,6 +920,7 @@ class EventDetector:
         cls,
         data: Dict[str, str],
     ) -> Tuple[bool, float, List[str]]:
+
         errors: List[str] = []
 
         action = cls.clean(data.get("action"))
@@ -885,39 +933,33 @@ class EventDetector:
         result = cls.clean(data.get("result"))
         needs = cls.clean(data.get("needs"))
 
-        # --------------------------------------------------------
-        # Action
-        # --------------------------------------------------------
+        # ========================================================
+        # ACTION
+        # ========================================================
 
         if not action:
             errors.append(
                 "Aucune action identifiable."
             )
+            return False, 0.0, errors
 
-        elif cls.is_non_activity_title(action):
+        if cls.is_non_activity_title(action):
             errors.append(
                 "Le titre correspond à une statistique ou un indicateur."
             )
+            return False, 0.0, errors
 
-        # --------------------------------------------------------
-        # Date
-        # --------------------------------------------------------
+        # ========================================================
+        # SCORE
+        # ========================================================
 
-        if date and cls.looks_like_date(date):
-            pass
+        score = 0.45
 
-        # --------------------------------------------------------
-        # Score
-        # --------------------------------------------------------
-
-        score = 0.0
-
-        if action:
-            score += 0.35
-
+        # Verbe d'action
         if cls.contains_action_verb(action):
             score += 0.15
 
+        # Autres informations
         if objective:
             score += 0.08
 
@@ -925,45 +967,29 @@ class EventDetector:
             score += 0.08
 
         if date:
-            score += 0.12
+            score += 0.08
 
         if location:
-            score += 0.07
-
-        if participants:
             score += 0.05
 
+        if participants:
+            score += 0.04
+
         if responsible:
-            score += 0.06
+            score += 0.04
 
         if result:
-            score += 0.06
+            score += 0.05
 
         if needs:
             score += 0.03
 
-        # --------------------------------------------------------
-        # Pénalités
-        # --------------------------------------------------------
+        score = max(
+            0.0,
+            min(1.0, score)
+        )
 
-        if action and cls.is_non_activity_title(action):
-            score -= 0.60
-
-        if (
-            action
-            and not cls.contains_action_verb(action)
-            and not date
-            and not responsible
-            and not objective
-            and not strategy
-        ):
-            score -= 0.15
-
-        score = max(0.0, min(1.0, score))
-
-        valid = bool(action) and not cls.is_non_activity_title(action)
-
-        return valid, round(score, 2), errors
+        return True, round(score, 2), errors
 
     # ============================================================
     # LIGNE DE CONTINUATION
@@ -1212,10 +1238,12 @@ class EventDetector:
         payload: Dict[str, Any],
     ) -> Optional[DetectedEvent]:
 
-        # --------------------------------------------------------
-        # On ne transmet que les champs réellement présents
-        # dans le modèle Django.
-        # --------------------------------------------------------
+        print()
+        print("[EventDetector] ===== SAVE EVENT =====")
+
+        # ========================================================
+        # Champs réellement présents dans le modèle
+        # ========================================================
 
         model_fields = {
             field.name
@@ -1223,60 +1251,244 @@ class EventDetector:
             if hasattr(field, "name")
         }
 
-        cleaned = {
-            key: value
-            for key, value in payload.items()
-            if key in model_fields
+        print(
+            f"[EventDetector] Champs modèle : "
+            f"{sorted(model_fields)}"
+        )
+
+        # ========================================================
+        # Conversion du schéma EventDetector
+        # vers le schéma réel DetectedEvent
+        # ========================================================
+
+        action = cls.clean(payload.get("action"))
+        objective = cls.clean(payload.get("objective"))
+        strategy = cls.clean(payload.get("strategy"))
+        location = cls.clean(payload.get("location"))
+        date = cls.clean(payload.get("date"))
+        participants = cls.clean(payload.get("participants"))
+        responsible = cls.clean(payload.get("responsible"))
+        result = cls.clean(payload.get("result"))
+        needs = cls.clean(payload.get("needs"))
+
+        # L'action devient le titre de l'événement.
+        title = action
+
+        if not title:
+            title = objective
+
+        if not title:
+            print(
+                "[EventDetector] SAVE ABANDONNÉ : "
+                "aucun titre/action"
+            )
+            return None
+
+        # ========================================================
+        # Description
+        # ========================================================
+
+        description_parts = []
+
+        if objective and objective != title:
+            description_parts.append(
+                f"Objectif : {objective}"
+            )
+
+        if strategy:
+            description_parts.append(
+                f"Stratégie : {strategy}"
+            )
+
+        if participants:
+            description_parts.append(
+                f"Participants : {participants}"
+            )
+
+        if result:
+            description_parts.append(
+                f"Résultat attendu : {result}"
+            )
+
+        if needs:
+            description_parts.append(
+                f"Besoins : {needs}"
+            )
+
+        description = "\n".join(description_parts)
+
+        # ========================================================
+        # Payload compatible avec DetectedEvent
+        # ========================================================
+
+        cleaned = {}
+
+        field_values = {
+            "document": payload.get("document"),
+            "page": payload.get("page"),
+
+            "title": title,
+            "objective": objective,
+            "description": description,
+
+            "location": location,
+            "responsible": responsible,
+
+            "confidence": payload.get(
+                "confidence",
+                0.0,
+            ),
+
+            "status": payload.get(
+                "status",
+                "REVIEW",
+            ),
+
+            "category": payload.get(
+                "_category"
+            ),
+
+            "raw_data": payload.get(
+                "_raw_row"
+            ),
+
+            "source_reference": (
+                f"document:{payload.get('document').id}"
+                f"|page:{getattr(payload.get('page'), 'id', '')}"
+                f"|row:{payload.get('_row_index', '')}"
+            ),
         }
 
-        # --------------------------------------------------------
-        # Recherche d'un événement existant.
-        # --------------------------------------------------------
+        # ========================================================
+        # Date
+        # ========================================================
 
-        action = cleaned.get("action", "")
+        # On ne convertit pas encore les dates textuelles comme
+        # "Du 05 au 19 mai" en datetime.
+        #
+        # On laisse event_date vide tant qu'une vraie date exploitable
+        # n'est pas disponible.
+        #
+        # Cela permet de conserver l'activité même sans date.
 
-        if not action:
-            return None
+        # ========================================================
+        # Ne garder que les champs existants
+        # ========================================================
+
+        for key, value in field_values.items():
+
+            if key not in model_fields:
+                continue
+
+            if value in [
+                None,
+                "",
+            ]:
+                continue
+
+            cleaned[key] = value
+
+        print(
+            f"[EventDetector] Titre : {title!r}"
+        )
+
+        print(
+            f"[EventDetector] Payload compatible : "
+            f"{cleaned}"
+        )
+
+        # ========================================================
+        # Recherche d'un événement existant
+        # ========================================================
 
         lookup = {
             "document": payload.get("document"),
-            "action": action,
+            "title": title,
         }
 
         if "page" in model_fields:
             lookup["page"] = payload.get("page")
 
+        print(
+            f"[EventDetector] Lookup : {lookup}"
+        )
+
         try:
+
             event = DetectedEvent.objects.filter(
                 **lookup
             ).first()
 
+            # ====================================================
+            # Mise à jour
+            # ====================================================
+
             if event:
+
+                print(
+                    f"[EventDetector] "
+                    f"ÉVÉNEMENT EXISTANT : id={event.id}"
+                )
+
                 for key, value in cleaned.items():
+
                     if key in {
                         "document",
                         "page",
                     }:
                         continue
 
-                    if value not in [
-                        None,
-                        "",
-                    ]:
-                        setattr(event, key, value)
+                    setattr(
+                        event,
+                        key,
+                        value,
+                    )
 
                 event.save()
 
+                print(
+                    f"[EventDetector] "
+                    f"MISE À JOUR OK : id={event.id}"
+                )
+
                 return event
 
-            return DetectedEvent.objects.create(**cleaned)
+            # ====================================================
+            # Création
+            # ====================================================
+
+            print(
+                "[EventDetector] CRÉATION..."
+            )
+
+            event = DetectedEvent.objects.create(
+                **cleaned
+            )
+
+            print(
+                f"[EventDetector] "
+                f"CRÉATION OK : id={event.id}"
+            )
+
+            return event
 
         except Exception as exc:
-            print(
-                f"[EventDetector] ERREUR sauvegarde : {exc}"
-            )
-            return None
 
+            print()
+            print(
+                "[EventDetector] ❌ ERREUR SAUVEGARDE"
+            )
+            print(
+                f"[EventDetector] Type : "
+                f"{type(exc).__name__}"
+            )
+            print(
+                f"[EventDetector] Message : "
+                f"{exc}"
+            )
+
+            return None
+            
     # ============================================================
     # ANALYSE PRINCIPALE
     # ============================================================
