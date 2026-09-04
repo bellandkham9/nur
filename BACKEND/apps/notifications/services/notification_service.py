@@ -5,7 +5,9 @@ from django.utils import timezone
 from apps.accounts.models import UserPreferences
 from apps.activities.models import ActivityParticipant
 from apps.notifications.models import Notification
-
+from apps.notifications.services.notification_engine import (
+    NotificationEngine,
+)
 
 
 
@@ -938,7 +940,10 @@ class NotificationService:
         Crée automatiquement un rappel intelligent
         pour une activité.
 
-        Aucun reminder_minutes n'est nécessaire.
+        La création réelle de la Notification est déléguée
+        à NotificationEngine.
+
+        Aucun envoi Push n'est effectué ici.
         """
 
         if not activity or not user:
@@ -977,9 +982,7 @@ class NotificationService:
         # PRÉFÉRENCES
         # ------------------------------------------------------
 
-        if not NotificationService.reminders_enabled(
-            user
-        ):
+        if not NotificationService.reminders_enabled(user):
             return None
 
         # ------------------------------------------------------
@@ -1006,92 +1009,45 @@ class NotificationService:
         now = timezone.now()
 
         # ------------------------------------------------------
-        # SI LE RAPPEL EST DÉJÀ PASSÉ
-        #
-        # On le transforme en rappel immédiat.
+        # RAPPEL DÉJÀ PASSÉ
         # ------------------------------------------------------
 
         if scheduled_for < now:
             scheduled_for = now
 
         # ------------------------------------------------------
-        # DOUBLON
+        # CONTENU
         # ------------------------------------------------------
 
-        existing_notification = (
-            Notification.objects
-            .filter(
-                user=user,
-                event_source="ACTIVITY",
-                event_id=activity.id,
-                status__in=[
-                    Notification.Status.PENDING,
-                    Notification.Status.SENT,
-                    Notification.Status.READ,
-                ],
-            )
-            .first()
+        title = f"Rappel : {activity.title}"
+
+        message = (
+            f"L'activité « "
+            f"{activity.title} » "
+            f"commence dans "
+            f"{NotificationService.format_reminder_delay(
+                reminder_minutes
+            )}."
         )
 
-        if existing_notification:
-
-            # Une notification PENDING peut être recalculée
-            if (
-                existing_notification.status
-                == Notification.Status.PENDING
-            ):
-
-                existing_notification.title = (
-                    f"Rappel : {activity.title}"
-                )
-
-                existing_notification.message = (
-                    f"L'activité « "
-                    f"{activity.title} » "
-                    f"commence dans "
-                    f"{NotificationService.format_reminder_delay(
-                        reminder_minutes
-                    )}."
-                )
-
-                existing_notification.scheduled_for = (
-                    scheduled_for
-                )
-
-                existing_notification.save(
-                    update_fields=[
-                        "title",
-                        "message",
-                        "scheduled_for",
-                    ]
-                )
-
-            return existing_notification
-
         # ------------------------------------------------------
-        # CRÉATION
+        # IDENTITÉ DE LA NOTIFICATION
         # ------------------------------------------------------
 
-        return Notification.objects.create(
+        event_code = f"ACTIVITY_{activity.id}"
+
+        # ------------------------------------------------------
+        # NOTIFICATION ENGINE
+        # ------------------------------------------------------
+
+        return NotificationEngine.schedule(
             user=user,
-
-            title=f"Rappel : {activity.title}",
-
-            message=(
-                f"L'activité « "
-                f"{activity.title} » "
-                f"commence dans "
-                f"{NotificationService.format_reminder_delay(
-                    reminder_minutes
-                )}."
-            ),
-
-            event_source="ACTIVITY",
-            event_id=activity.id,
-
+            source=NotificationEngine.SOURCE_ACTIVITY,
+            title=title,
+            message=message,
             scheduled_for=scheduled_for,
-
-            status=Notification.Status.PENDING,
+            event_id=activity.id,
+            event_code=event_code,
         )
 
     # ==========================================================
