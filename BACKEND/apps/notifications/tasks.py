@@ -1,107 +1,40 @@
 from celery import shared_task
-from django.utils import timezone
 
-from apps.notifications.models import Notification
-from apps.notifications.services.notification_service import (
-    BahaiNotificationService,
-)
-from apps.notifications.services.web_push_service import (
-    WebPushService,
+from apps.notifications.services.notification_processor import (
+    NotificationProcessor,
 )
 
-
-# ============================================================
-# GÉNÉRATION DES NOTIFICATIONS BAHÁ'ÍES
-# ============================================================
 
 @shared_task
 def generate_bahai_notifications_task():
     """
-    Génère les notifications à venir pour les événements
-    du calendrier bahá'í.
+    Génère les notifications bahá'í à venir.
 
-    Cette tâche ne fait PAS l'envoi Push.
-
-    Elle crée simplement les objets Notification
-    avec le statut PENDING.
+    Cette tâche crée les Notification PENDING.
+    Elle n'envoie aucun push.
     """
 
-    try:
+    from apps.notifications.services.notification_service import (
+        BahaiNotificationService,
+    )
 
-        created = (
-            BahaiNotificationService
-            .generate_upcoming_notifications()
-        )
+    created = (
+        BahaiNotificationService
+        .generate_upcoming_notifications()
+    )
 
-        return {
-            "created": created,
-            "executed_at": timezone.now().isoformat(),
-        }
+    return {
+        "created": created,
+    }
 
-    except Exception as exc:
-
-        print(
-            "❌ Erreur génération notifications "
-            f"bahá'íes : {exc}"
-        )
-
-        raise
-
-
-# ============================================================
-# ENVOI DES NOTIFICATIONS
-# ============================================================
 
 @shared_task
 def process_notifications_task():
     """
-    Recherche les notifications PENDING dont la date
-    d'envoi est atteinte puis les envoie via Web Push.
+    Tâche Celery officielle de traitement des notifications.
     """
 
-    now = timezone.now()
-
-    notifications = (
-        Notification.objects
-        .filter(
-            status=Notification.Status.PENDING,
-            scheduled_for__lte=now,
-        )
-        .select_related("user")
-        .order_by("scheduled_for")
+    return (
+        NotificationProcessor
+        .process_due_notifications()
     )
-
-    processed = 0
-
-    for notification in notifications:
-
-        try:
-
-            sent_count = WebPushService.send(
-                notification
-            )
-
-            if sent_count > 0:
-
-                notification.status = (
-                    Notification.Status.SENT
-                )
-
-                notification.save(
-                    update_fields=["status"]
-                )
-
-                processed += 1
-
-        except Exception as exc:
-
-            print(
-                f"❌ Erreur notification "
-                f"{notification.id}: {exc}"
-            )
-
-    return {
-        "found": notifications.count(),
-        "processed": processed,
-        "executed_at": now.isoformat(),
-    }

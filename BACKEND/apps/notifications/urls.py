@@ -11,10 +11,6 @@ from .views import (
 
 router = DefaultRouter()
 
-# IMPORTANT :
-# Les routes spécifiques doivent être déclarées
-# avant la route générale des notifications.
-
 router.register(
     r"push-subscriptions",
     PushSubscriptionViewSet,

@@ -1,55 +1,53 @@
+from django.conf import settings
+from django.http import JsonResponse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.conf import settings
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from django.conf import settings
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from .tasks import process_notifications_task
 
+from apps.daily_quotes.services.quote_notification_service import (
+    QuoteNotificationService,
+)
 
-from .models import Notification, PushSubscription
-from .serializers import (
+from apps.notifications.models import (
+    Notification,
+    PushSubscription,
+)
+
+from apps.notifications.serializers import (
     NotificationSerializer,
     PushSubscriptionSerializer,
 )
 
+from apps.notifications.services.notification_processor import (
+    NotificationProcessor,
+)
+
 
 # ==========================================================
-# NOTIFICATIONS
+# NOTIFICATIONS UTILISATEUR
 # ==========================================================
 
-class NotificationViewSet(viewsets.ModelViewSet):
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API de gestion des notifications
-    de l'utilisateur connecté.
+    API utilisateur des notifications.
+
+    La création des notifications est interdite via l'API.
+    Les notifications sont créées par les services métier
+    via NotificationEngine.
     """
 
     serializer_class = NotificationSerializer
-
-    permission_classes = [
-        IsAuthenticated,
-    ]
-
-    # ======================================================
-    # QUERYSET
-    # ======================================================
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        Retourne uniquement les notifications
-        appartenant à l'utilisateur connecté.
-        """
-
         return (
             Notification.objects
             .filter(
-                user=self.request.user
+                user=self.request.user,
             )
             .order_by(
                 "scheduled_for",
@@ -57,59 +55,31 @@ class NotificationViewSet(viewsets.ModelViewSet):
             )
         )
 
-    # ======================================================
-    # CRÉATION
-    # ======================================================
-
-    def perform_create(self, serializer):
-        """
-        Associe automatiquement la notification
-        à l'utilisateur connecté.
-        """
-
-        serializer.save(
-            user=self.request.user
-        )
-
-    # ======================================================
-    # MARQUER UNE NOTIFICATION COMME LUE
-    # ======================================================
-
     @action(
         detail=True,
         methods=["post"],
         url_path="read",
     )
     def mark_as_read(self, request, pk=None):
-        """
-        Marque une notification comme lue.
-        """
-
         notification = self.get_object()
 
-        notification.status = (
-            Notification.Status.READ
-        )
+        if notification.status != Notification.Status.READ:
+            notification.status = Notification.Status.READ
+            notification.read_at = timezone.now()
 
-        notification.read_at = timezone.now()
-
-        notification.save(
-            update_fields=[
-                "status",
-                "read_at",
-            ]
-        )
+            notification.save(
+                update_fields=[
+                    "status",
+                    "read_at",
+                ]
+            )
 
         return Response(
             NotificationSerializer(
-                notification
-            ).data,
-            status=status.HTTP_200_OK,
+                notification,
+                context={"request": request},
+            ).data
         )
-
-    # ======================================================
-    # MARQUER TOUTES COMME LUES
-    # ======================================================
 
     @action(
         detail=False,
@@ -117,43 +87,26 @@ class NotificationViewSet(viewsets.ModelViewSet):
         url_path="read-all",
     )
     def mark_all_as_read(self, request):
-        """
-        Marque toutes les notifications
-        de l'utilisateur comme lues.
-        """
-
-        now = timezone.now()
-
-        updated_count = (
+        updated = (
             Notification.objects
             .filter(
-                user=request.user
+                user=request.user,
             )
             .exclude(
-                status=Notification.Status.READ
+                status=Notification.Status.READ,
             )
             .update(
                 status=Notification.Status.READ,
-                read_at=now,
+                read_at=timezone.now(),
             )
         )
 
         return Response(
             {
                 "success": True,
-                "updated_count": updated_count,
-                "message": (
-                    f"{updated_count} "
-                    f"notification(s) "
-                    f"marquée(s) comme lue(s)."
-                ),
-            },
-            status=status.HTTP_200_OK,
+                "updated": updated,
+            }
         )
-
-    # ======================================================
-    # ANNULER
-    # ======================================================
 
     @action(
         detail=True,
@@ -161,27 +114,22 @@ class NotificationViewSet(viewsets.ModelViewSet):
         url_path="cancel",
     )
     def cancel(self, request, pk=None):
-        """
-        Annule une notification.
-        """
-
         notification = self.get_object()
 
-        notification.status = (
-            Notification.Status.CANCELLED
-        )
+        if notification.status == Notification.Status.PENDING:
+            notification.status = Notification.Status.CANCELLED
 
-        notification.save(
-            update_fields=[
-                "status",
-            ]
-        )
+            notification.save(
+                update_fields=[
+                    "status",
+                ]
+            )
 
         return Response(
             NotificationSerializer(
-                notification
-            ).data,
-            status=status.HTTP_200_OK,
+                notification,
+                context={"request": request},
+            ).data
         )
 
 
@@ -191,52 +139,21 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
 class PushSubscriptionViewSet(viewsets.ModelViewSet):
     """
-    API de gestion des abonnements Web Push.
+    Gestion des abonnements Web Push de l'utilisateur.
     """
 
     serializer_class = PushSubscriptionSerializer
-
-    permission_classes = [
-        IsAuthenticated,
-    ]
-
-    # ======================================================
-    # QUERYSET
-    # ======================================================
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        Retourne uniquement les abonnements
-        de l'utilisateur connecté.
-        """
-
-        return (
-            PushSubscription.objects
-            .filter(
-                user=self.request.user
-            )
-            .order_by(
-                "-created_at"
-            )
-        )
-
-    # ======================================================
-    # CRÉATION
-    # ======================================================
-
-    def perform_create(self, serializer):
-        """
-        Associe automatiquement l'abonnement
-        à l'utilisateur connecté.
-        """
-
-        serializer.save(
+        return PushSubscription.objects.filter(
             user=self.request.user
         )
 
-    # ======================================================
-    # SUBSCRIBE
-    # ======================================================
+    def perform_create(self, serializer):
+        serializer.save(
+            user=self.request.user
+        )
 
     @action(
         detail=False,
@@ -244,63 +161,30 @@ class PushSubscriptionViewSet(viewsets.ModelViewSet):
         url_path="subscribe",
     )
     def subscribe(self, request):
-        """
-        Crée ou met à jour un abonnement Push.
-
-        Payload :
-
-        {
-            "endpoint": "...",
-            "p256dh": "...",
-            "auth": "..."
-        }
-        """
-
-        endpoint = request.data.get(
-            "endpoint"
-        )
-
-        p256dh = request.data.get(
-            "p256dh"
-        )
-
-        auth = request.data.get(
-            "auth"
-        )
+        endpoint = request.data.get("endpoint")
+        p256dh = request.data.get("p256dh")
+        auth = request.data.get("auth")
 
         if not endpoint:
             return Response(
                 {
-                    "detail": (
-                        "endpoint est obligatoire."
-                    )
+                    "detail": "endpoint est obligatoire."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not p256dh:
+        if not p256dh or not auth:
             return Response(
                 {
                     "detail": (
-                        "p256dh est obligatoire."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if not auth:
-            return Response(
-                {
-                    "detail": (
-                        "auth est obligatoire."
+                        "p256dh et auth sont obligatoires."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         subscription, created = (
-            PushSubscription.objects
-            .update_or_create(
+            PushSubscription.objects.update_or_create(
                 endpoint=endpoint,
                 defaults={
                     "user": request.user,
@@ -310,14 +194,11 @@ class PushSubscriptionViewSet(viewsets.ModelViewSet):
             )
         )
 
-        serializer = self.get_serializer(
-            subscription
-        )
-
         return Response(
             {
+                "success": True,
                 "created": created,
-                "subscription": serializer.data,
+                "id": subscription.id,
             },
             status=(
                 status.HTTP_201_CREATED
@@ -326,30 +207,18 @@ class PushSubscriptionViewSet(viewsets.ModelViewSet):
             ),
         )
 
-    # ======================================================
-    # UNSUBSCRIBE
-    # ======================================================
-
     @action(
         detail=False,
         methods=["post"],
         url_path="unsubscribe",
     )
     def unsubscribe(self, request):
-        """
-        Supprime un abonnement Push.
-        """
-
-        endpoint = request.data.get(
-            "endpoint"
-        )
+        endpoint = request.data.get("endpoint")
 
         if not endpoint:
             return Response(
                 {
-                    "detail": (
-                        "endpoint est obligatoire."
-                    )
+                    "detail": "endpoint est obligatoire."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -363,103 +232,113 @@ class PushSubscriptionViewSet(viewsets.ModelViewSet):
             .delete()
         )
 
-        if deleted == 0:
-            return Response(
-                {
-                    "detail": (
-                        "Abonnement introuvable."
-                    )
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        return Response(
-            {
-                "detail": (
-                    "Abonnement supprimé."
-                )
-            },
-            status=status.HTTP_200_OK,
-        )
-
-    # ==========================================================
-    # CRON — TRAITEMENT DES NOTIFICATIONS
-    # ==========================================================
-
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def process_notifications_cron(request):
-        """
-        Endpoint appelé par cron-job.org.
-
-        Le secret envoyé dans le header X-Cron-Secret
-        permet d'empêcher les appels non autorisés.
-        """
-
-        cron_secret = request.headers.get("X-Cron-Secret")
-
-        expected_secret = getattr(
-            settings,
-            "CRON_SECRET",
-            "",
-        )
-
-        if not expected_secret:
-            return Response(
-                {
-                    "success": False,
-                    "detail": "CRON_SECRET non configuré.",
-                },
-                status=500,
-            )
-
-        if cron_secret != expected_secret:
-            return Response(
-                {
-                    "success": False,
-                    "detail": "Non autorisé.",
-                },
-                status=403,
-            )
-
-        result = process_notifications_task()
-
         return Response(
             {
                 "success": True,
-                "message": "Notifications traitées.",
-                "result": result,
-            },
-            status=status.HTTP_200_OK,
-        )    
+                "deleted": deleted,
+            }
+        )
 
 
-# ============================================================
-# TRAITEMENT AUTOMATIQUE DES NOTIFICATIONS
-# ============================================================
+# ==========================================================
+# CRON JOB
+# ==========================================================
 
 @csrf_exempt
-def process_notifications_internal(request):
+def process_notifications_cron(request):
     """
-    Endpoint interne appelé par le scheduler externe.
+    Endpoint principal appelé par cron-job.org.
 
-    Il déclenche exactement le même moteur que :
+    Responsabilités :
 
-        python manage.py process_notifications
-
-    L'accès est protégé par X-Notification-Secret.
+    1. Générer les Daily Quotes qui sont dues.
+    2. Traiter les notifications PENDING dont
+       scheduled_for <= maintenant.
     """
 
     if request.method != "POST":
         return JsonResponse(
             {
-                "success": False,
-                "detail": "Méthode non autorisée.",
+                "detail": "Méthode POST uniquement."
             },
             status=405,
         )
 
-    secret = request.headers.get("X-Notification-Secret")
+    # ------------------------------------------------------
+    # AUTHENTIFICATION CRON
+    # ------------------------------------------------------
+
+    expected_secret = getattr(
+        settings,
+        "CRON_SECRET",
+        None,
+    )
+
+    provided_secret = request.headers.get(
+        "X-Cron-Secret"
+    )
+
+    if (
+        not expected_secret
+        or provided_secret != expected_secret
+    ):
+        return JsonResponse(
+            {
+                "detail": "Unauthorized."
+            },
+            status=401,
+        )
+
+    # ------------------------------------------------------
+    # 1. GÉNÉRATION DAILY QUOTES
+    # ------------------------------------------------------
+
+    daily_quotes_result = (
+        QuoteNotificationService
+        .generate_due_quotes()
+    )
+
+    # ------------------------------------------------------
+    # 2. TRAITEMENT NOTIFICATIONS DUES
+    # ------------------------------------------------------
+
+    notifications_result = (
+        NotificationProcessor
+        .process_due_notifications()
+    )
+
+    # ------------------------------------------------------
+    # RÉPONSE
+    # ------------------------------------------------------
+
+    return JsonResponse(
+        {
+            "success": True,
+            "daily_quotes": daily_quotes_result,
+            "notifications": notifications_result,
+        }
+    )
+
+
+# ==========================================================
+# TRAITEMENT INTERNE
+# ==========================================================
+
+@csrf_exempt
+def process_notifications_internal(request):
+    """
+    Endpoint interne de traitement.
+
+    Utilise NOTIFICATION_PROCESS_SECRET.
+    """
+
+    if request.method != "POST":
+        return JsonResponse(
+            {
+                "detail": "Méthode POST uniquement."
+            },
+            status=405,
+        )
 
     expected_secret = getattr(
         settings,
@@ -467,49 +346,29 @@ def process_notifications_internal(request):
         None,
     )
 
-    if not expected_secret:
+    provided_secret = request.headers.get(
+        "X-Notification-Secret"
+    )
+
+    if (
+        not expected_secret
+        or provided_secret != expected_secret
+    ):
         return JsonResponse(
             {
-                "success": False,
-                "detail": "Secret de traitement non configuré.",
+                "detail": "Unauthorized."
             },
-            status=500,
+            status=401,
         )
 
-    if not secret or secret != expected_secret:
-        return JsonResponse(
-            {
-                "success": False,
-                "detail": "Non autorisé.",
-            },
-            status=403,
-        )
+    result = (
+        NotificationProcessor
+        .process_due_notifications()
+    )
 
-    try:
-        from apps.notifications.management.commands.process_notifications import (
-            Command,
-        )
-
-        Command().handle()
-
-        return JsonResponse(
-            {
-                "success": True,
-                "message": "Notifications traitées.",
-            },
-            status=200,
-        )
-
-    except Exception as exc:
-        print(
-            f"❌ Erreur traitement automatique "
-            f"des notifications : {exc}"
-        )
-
-        return JsonResponse(
-            {
-                "success": False,
-                "detail": "Erreur lors du traitement des notifications.",
-            },
-            status=500,
-        )
+    return JsonResponse(
+        {
+            "success": True,
+            "result": result,
+        }
+    )

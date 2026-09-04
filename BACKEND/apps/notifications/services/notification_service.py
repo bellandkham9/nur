@@ -1,141 +1,69 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+from django.contrib.auth.models import User
 from django.utils import timezone
 
-from apps.accounts.models import UserPreferences
-from apps.activities.models import ActivityParticipant
 from apps.notifications.models import Notification
 from apps.notifications.services.notification_engine import (
     NotificationEngine,
 )
 
 
-
-from datetime import datetime, time, timedelta
-
-from django.utils import timezone
-
-from apps.notifications.models import Notification
-from apps.bahai_calendar.services.events import (
-    FEAST,
-    HOLY_DAY,
-    get_all_events,
-)
-
-
 class BahaiNotificationService:
     """
-    Génère les notifications liées aux événements
-    du calendrier bahá'í.
+    Orchestration des notifications liées au calendrier bahá'í.
     """
-
-    # ==========================================================
-    # PARAMÈTRES
-    # ==========================================================
 
     DEFAULT_HOUR = 7
     DEFAULT_MINUTE = 0
-
-    # Nombre de jours à l'avance pour créer les notifications.
     DAYS_AHEAD = 30
-
-    # ==========================================================
-    # UTILISATEURS
-    # ==========================================================
 
     @staticmethod
     def get_users():
-        """
-        Retourne les utilisateurs pour lesquels les notifications
-        Push sont activées.
-        """
-
-        from django.contrib.auth import get_user_model
-        from apps.accounts.models import UserPreferences
-
-        User = get_user_model()
-
         return User.objects.filter(
-            preferences__push_notifications_enabled=True
-        )
-
-    # ==========================================================
-    # DATE DE NOTIFICATION
-    # ==========================================================
+            is_active=True,
+            preferences__push_notifications_enabled=True,
+        ).distinct()
 
     @classmethod
     def build_scheduled_datetime(cls, event_date):
-        """
-        Construit la date/heure d'envoi.
+        tz = timezone.get_current_timezone()
 
-        Pour l'instant :
-            événement → notification à 07:00 le jour même.
-        """
+        value = event_date
 
-        naive_datetime = datetime.combine(
-            event_date,
-            time(
-                cls.DEFAULT_HOUR,
-                cls.DEFAULT_MINUTE,
+        if hasattr(value, "date"):
+            value = value.date()
+
+        naive = timezone.datetime.combine(
+            value,
+            timezone.datetime.min.time().replace(
+                hour=cls.DEFAULT_HOUR,
+                minute=cls.DEFAULT_MINUTE,
             ),
         )
 
         return timezone.make_aware(
-            naive_datetime,
-            timezone.get_current_timezone(),
+            naive,
+            timezone=tz,
         )
-
-    # ==========================================================
-    # CONTENU
-    # ==========================================================
 
     @staticmethod
     def build_title(event):
-        """
-        Construit le titre de la notification.
-        """
+        event_type = str(
+            getattr(event, "event_type", "")
+        ).upper()
 
-        if event["event_type"] == FEAST:
-            return f"🕊️ {event['name']}"
+        if event_type == "HOLY_DAY":
+            return f"Jour saint : {event.name}"
 
-        if event["event_type"] == HOLY_DAY:
-            return f"🌟 {event['name']}"
-
-        return event["name"]
+        return f"Fête bahá'íe : {event.name}"
 
     @staticmethod
     def build_message(event):
-        """
-        Construit le message de la notification.
-        """
-
-        if event["event_type"] == FEAST:
-
-            return (
-                f"Aujourd'hui : {event['name']}. "
-                f"{event['description']}"
-            )
-
-        if event["event_type"] == HOLY_DAY:
-
-            message = (
-                f"Aujourd'hui : {event['name']}. "
-                f"{event['description']}"
-            )
-
-            if event.get("work_suspension"):
-                message += (
-                    " Le travail est suspendu "
-                    "pour cette journée."
-                )
-
-            return message
-
-        return event["description"]
-
-    # ==========================================================
-    # CRÉATION
-    # ==========================================================
+        return (
+            f"{event.name} aura lieu le "
+            f"{event.date.strftime('%d/%m/%Y')}."
+        )
 
     @classmethod
     def create_notification_for_event(
@@ -143,856 +71,360 @@ class BahaiNotificationService:
         user,
         event,
     ):
-        """
-        Crée une notification pour un événement donné.
+        event_date = getattr(event, "date", None)
 
-        Retourne :
-            Notification
-            ou None si elle existe déjà.
-        """
+        if not event_date:
+            return None
 
-        event_date = datetime.fromisoformat(
-            event["date"]
-        ).date()
+        event_type = str(
+            getattr(event, "event_type", "")
+        ).upper()
+
+        if event_type == "HOLY_DAY":
+            source = NotificationEngine.SOURCE_HOLY_DAY
+        else:
+            source = NotificationEngine.SOURCE_FEAST
+
+        event_code = (
+            f"{source}_{getattr(event, 'id', None)}_"
+            f"{event_date.isoformat()}"
+        )
 
         scheduled_for = cls.build_scheduled_datetime(
             event_date
         )
 
-        # ------------------------------------------------------
-        # Éviter les doublons
-        # ------------------------------------------------------
-
-        existing = Notification.objects.filter(
-            user=user,
-            event_source=event["event_type"],
-            scheduled_for=scheduled_for,
-            title=cls.build_title(event),
-        ).first()
-
-        if existing:
+        if scheduled_for < timezone.now():
             return None
 
-        # ------------------------------------------------------
-        # Création
-        # ------------------------------------------------------
-
-        notification = Notification.objects.create(
+        return NotificationEngine.schedule(
             user=user,
-
-            title=cls.build_title(
-                event
-            ),
-
-            message=cls.build_message(
-                event
-            ),
-
-            event_source=event["event_type"],
-
-            # Les événements bahá'ís ne sont pas des objets
-            # Django possédant un ID.
-            event_id=None,
-
+            source=source,
+            title=cls.build_title(event),
+            message=cls.build_message(event),
             scheduled_for=scheduled_for,
-
-            status=Notification.Status.PENDING,
+            event_id=getattr(event, "id", None),
+            event_code=event_code,
         )
-
-        return notification
-
-    # ==========================================================
-    # GÉNÉRATION
-    # ==========================================================
 
     @classmethod
     def generate_upcoming_notifications(cls):
-        """
-        Génère les notifications des événements bahá'ís
-        à venir pour tous les utilisateurs concernés.
-
-        La fenêtre couvre :
-            aujourd'hui → + DAYS_AHEAD jours.
-        """
-
-        today = timezone.localdate()
-
-        end_date = today + timedelta(
-            days=cls.DAYS_AHEAD
+        from apps.notifications.services.bahai_calendar_service import (
+            get_all_events,
         )
 
-        events = []
+        today = timezone.localdate()
+        end_date = today + timedelta(days=cls.DAYS_AHEAD)
 
-        for year in range(
-            today.year,
-            end_date.year + 1,
-        ):
-            events.extend(
-                get_all_events(year)
-            )
-
-        # ------------------------------------------------------
-        # Filtrage de la période
-        # ------------------------------------------------------
-
-        events = [
-            event
-            for event in events
-            if today
-            <= datetime.fromisoformat(
-                event["date"]
-            ).date()
-            <= end_date
-        ]
-
-        # ------------------------------------------------------
-        # Utilisateurs
-        # ------------------------------------------------------
+        events = get_all_events(
+            start_date=today,
+            end_date=end_date,
+        )
 
         users = cls.get_users()
 
-        created_count = 0
-
-        # ------------------------------------------------------
-        # Création
-        # ------------------------------------------------------
+        created = 0
 
         for user in users:
-
             for event in events:
-
-                notification = (
-                    cls.create_notification_for_event(
-                        user,
-                        event,
-                    )
+                notification = cls.create_notification_for_event(
+                    user,
+                    event,
                 )
 
                 if notification:
-                    created_count += 1
+                    created += 1
 
-        return created_count
-    
+        return created
+
+
 class NotificationService:
     """
-    Service central de gestion des notifications.
+    Services métier pour les rappels d'événements,
+    activités et rappels quotidiens.
 
-    Le service détermine automatiquement le meilleur moment
-    pour rappeler l'utilisateur.
-
-    Le frontend n'a pas besoin de fournir :
-        - reminder_minutes
-        - 5 minutes
-        - 10 minutes
-        - 30 minutes
-        - etc.
-
-    Le backend décide automatiquement.
+    La création réelle est toujours déléguée
+    à NotificationEngine.
     """
 
-    # ==========================================================
-    # MOTEUR DE RAPPEL INTELLIGENT
-    # ==========================================================
+    # =========================================================
+    # RAPPELS
+    # =========================================================
 
     @staticmethod
     def get_smart_reminder_minutes(event_datetime):
-        """
-        Détermine automatiquement le délai de rappel.
+        return NotificationEngine.get_smart_reminder_minutes(
+            event_datetime
+        )
 
-        Le résultat dépend du temps restant avant l'événement.
+    @staticmethod
+    def format_reminder_delay(minutes):
+        return NotificationEngine.format_reminder_delay(
+            minutes
+        )
 
-        Exemples :
+    @staticmethod
+    def reminders_enabled(user):
+        if not user:
+            return False
 
-            événement dans 3 jours
-                → rappel 3 heures avant
+        try:
+            preferences = user.preferences
+        except Exception:
+            return True
 
-            événement dans 8 heures
-                → rappel 1 heure avant
+        return (
+            preferences.push_notifications_enabled
+            and preferences.event_reminders_enabled
+        )
 
-            événement dans 3 heures
-                → rappel 30 minutes avant
+    # =========================================================
+    # EVENT
+    # =========================================================
 
-            événement dans 45 minutes
-                → rappel 10 minutes avant
+    @classmethod
+    def create_event_reminder(cls, event):
+        if not event:
+            return None
 
-            événement dans 20 minutes
-                → rappel 5 minutes avant
+        user = getattr(event, "user", None)
 
-            événement dans 8 minutes
-                → rappel 3 minutes avant
+        if not user:
+            user = getattr(event, "created_by", None)
 
-            événement dans 4 minutes
-                → rappel 1 minute avant
+        if not user:
+            return None
 
-            événement dans moins de 2 minutes
-                → rappel immédiat
-        """
+        if not cls.reminders_enabled(user):
+            return None
+
+        event_datetime = getattr(
+            event,
+            "start_datetime",
+            None,
+        )
+
+        if not event_datetime:
+            event_datetime = getattr(
+                event,
+                "date",
+                None,
+            )
 
         if not event_datetime:
             return None
 
-        now = timezone.now()
+        event_datetime = NotificationEngine.normalize_datetime(
+            event_datetime
+        )
 
-        if timezone.is_naive(event_datetime):
-            event_datetime = timezone.make_aware(
+        reminder_minutes = (
+            NotificationEngine.get_smart_reminder_minutes(
+                event_datetime
+            )
+        )
+
+        if reminder_minutes is None:
+            return None
+
+        scheduled_for = (
+            NotificationEngine.calculate_scheduled_for(
                 event_datetime,
-                timezone.get_current_timezone(),
+                reminder_minutes,
             )
+        )
 
-        seconds_until_event = (
-            event_datetime - now
-        ).total_seconds()
-
-        # ------------------------------------------------------
-        # ÉVÉNEMENT DÉJÀ PASSÉ
-        # ------------------------------------------------------
-
-        if seconds_until_event <= 0:
+        if scheduled_for is None:
             return None
 
-        minutes_until_event = (
-            seconds_until_event / 60
+        source = getattr(
+            event,
+            "notification_source",
+            NotificationEngine.SOURCE_EVENT,
         )
 
-        # ------------------------------------------------------
-        # PLUS DE 7 JOURS
-        # ------------------------------------------------------
-
-        if minutes_until_event > 7 * 24 * 60:
-            return 24 * 60
-
-        # ------------------------------------------------------
-        # ENTRE 1 ET 7 JOURS
-        # ------------------------------------------------------
-
-        if minutes_until_event > 24 * 60:
-            return 3 * 60
-
-        # ------------------------------------------------------
-        # ENTRE 6H ET 24H
-        # ------------------------------------------------------
-
-        if minutes_until_event > 6 * 60:
-            return 60
-
-        # ------------------------------------------------------
-        # ENTRE 2H ET 6H
-        # ------------------------------------------------------
-
-        if minutes_until_event > 2 * 60:
-            return 30
-
-        # ------------------------------------------------------
-        # ENTRE 30 MIN ET 2H
-        # ------------------------------------------------------
-
-        if minutes_until_event > 30:
-            return 10
-
-        # ------------------------------------------------------
-        # ENTRE 10 ET 30 MIN
-        # ------------------------------------------------------
-
-        if minutes_until_event > 10:
-            return 5
-
-        # ------------------------------------------------------
-        # ENTRE 5 ET 10 MIN
-        # ------------------------------------------------------
-
-        if minutes_until_event > 5:
-            return 3
-
-        # ------------------------------------------------------
-        # ENTRE 2 ET 5 MIN
-        # ------------------------------------------------------
-
-        if minutes_until_event > 2:
-            return 1
-
-        # ------------------------------------------------------
-        # MOINS DE 2 MINUTES
-        # ------------------------------------------------------
-        #
-        # Un rappel classique serait déjà trop tardif.
-        #
-        # On utilise donc 0 minute :
-        # notification immédiate.
-        # ------------------------------------------------------
-
-        return 0
-
-    # ==========================================================
-    # FORMATAGE DU DÉLAI
-    # ==========================================================
-
-    @staticmethod
-    def format_reminder_delay(minutes):
-        """
-        Transforme un nombre de minutes en texte naturel.
-        """
-
-        if minutes is None:
-            return "bientôt"
-
-        minutes = int(minutes)
-
-        if minutes <= 0:
-            return "maintenant"
-
-        if minutes < 60:
-
-            if minutes == 1:
-                return "1 minute"
-
-            return f"{minutes} minutes"
-
-        hours = minutes // 60
-        remaining_minutes = minutes % 60
-
-        if hours == 1:
-
-            if remaining_minutes:
-                return (
-                    f"1 heure et "
-                    f"{remaining_minutes} minutes"
-                )
-
-            return "1 heure"
-
-        if remaining_minutes:
-
-            return (
-                f"{hours} heures et "
-                f"{remaining_minutes} minutes"
-            )
-
-        return f"{hours} heures"
-
-    # ==========================================================
-    # PRÉFÉRENCES
-    # ==========================================================
-
-    @staticmethod
-    def reminders_enabled(user):
-        """
-        Vérifie si l'utilisateur accepte les rappels
-        d'événements.
-        """
-
-        if not user:
-            return False
-
-        preferences = (
-            UserPreferences.objects
-            .filter(user=user)
-            .first()
+        event_code = (
+            f"{source}_{event.id}"
         )
 
-        if not preferences:
-            return True
-
-        return getattr(
-            preferences,
-            "event_reminders_enabled",
-            True,
-        )
-
-    # ==========================================================
-    # CRÉATION D'UN RAPPEL D'ÉVÉNEMENT
-    # ==========================================================
-
-    @staticmethod
-    def create_event_reminder(event):
-        """
-        Crée un rappel pour un événement normalisé.
-
-        Cette méthode conserve la compatibilité avec
-        EventService.
-
-        Si reminder_minutes est fourni explicitement,
-        il peut encore être utilisé pour les événements
-        génériques.
-
-        Les activités utilisent quant à elles le moteur
-        intelligent.
-        """
-
-        reminder_enabled = event.get(
-            "reminder_enabled",
-            True,
-        )
-
-        if not reminder_enabled:
-            return None
-
-        event_id = event.get("id")
-        event_source = event.get("source")
-        title = event.get(
+        title = getattr(
+            event,
+            "notification_title",
+            None,
+        ) or getattr(
+            event,
             "title",
-            "Événement",
+            "Rappel",
         )
-        user = event.get("user")
+
+        message = getattr(
+            event,
+            "notification_message",
+            None,
+        ) or (
+            f"Rappel pour l'événement "
+            f"« {getattr(event, 'title', 'événement')} »."
+        )
+
+        return NotificationEngine.schedule(
+            user=user,
+            source=source,
+            title=title,
+            message=message,
+            scheduled_for=scheduled_for,
+            event_id=event.id,
+            event_code=event_code,
+        )
+
+    @classmethod
+    def sync_event_reminder(cls, event):
+        if not event:
+            return None
+
+        user = getattr(event, "user", None)
 
         if not user:
-            raise ValueError(
-                "Impossible de créer la notification : "
-                "aucun utilisateur associé à l'événement."
-            )
+            user = getattr(event, "created_by", None)
 
-        if not event_id:
+        if not user:
             return None
 
-        if not event_source:
-            return None
-
-        if not NotificationService.reminders_enabled(
-            user
-        ):
-            return None
-
-        event_date = event.get("date")
-
-        if not event_date:
-            return None
-
-        start_time = event.get("start_time")
-
-        if not start_time:
-            start_time = datetime.min.time()
-
-        event_datetime = datetime.combine(
-            event_date,
-            start_time,
+        source = getattr(
+            event,
+            "notification_source",
+            NotificationEngine.SOURCE_EVENT,
         )
 
-        if timezone.is_naive(event_datetime):
-            event_datetime = timezone.make_aware(
-                event_datetime,
-                timezone.get_current_timezone(),
-            )
+        event_code = f"{source}_{event.id}"
 
-        # ------------------------------------------------------
-        # RAPPEL INTELLIGENT
-        # ------------------------------------------------------
-
-        reminder_minutes = (
-            NotificationService
-            .get_smart_reminder_minutes(
-                event_datetime
-            )
-        )
-
-        if reminder_minutes is None:
-            return None
-
-        scheduled_for = (
-            event_datetime
-            - timedelta(
-                minutes=reminder_minutes
-            )
-        )
-
-        now = timezone.now()
-
-        # ------------------------------------------------------
-        # RAPPEL DÉJÀ PASSÉ
-        # ------------------------------------------------------
-
-        if scheduled_for < now:
-            scheduled_for = now
-
-        # ------------------------------------------------------
-        # DOUBLON
-        # ------------------------------------------------------
-
-        existing_notification = (
-            Notification.objects.filter(
+        if not cls.reminders_enabled(user):
+            NotificationEngine.cancel(
                 user=user,
-                event_source=event_source,
-                event_id=event_id,
-                status__in=[
-                    Notification.Status.PENDING,
-                    Notification.Status.SENT,
-                    Notification.Status.READ,
-                ],
+                source=source,
+                event_id=event.id,
+                event_code=event_code,
             )
-            .first()
-        )
-
-        if existing_notification:
-
-            if (
-                existing_notification.status
-                == Notification.Status.PENDING
-            ):
-                existing_notification.title = (
-                    f"Rappel : {title}"
-                )
-
-                existing_notification.message = (
-                    f"L'événement « {title} » "
-                    f"commence dans "
-                    f"{NotificationService.format_reminder_delay(
-                        reminder_minutes
-                    )}."
-                )
-
-                existing_notification.scheduled_for = (
-                    scheduled_for
-                )
-
-                existing_notification.save(
-                    update_fields=[
-                        "title",
-                        "message",
-                        "scheduled_for",
-                    ]
-                )
-
-            return existing_notification
-
-        # ------------------------------------------------------
-        # CRÉATION
-        # ------------------------------------------------------
-
-        return Notification.objects.create(
-            user=user,
-            title=f"Rappel : {title}",
-            message=(
-                f"L'événement « {title} » "
-                f"commence dans "
-                f"{NotificationService.format_reminder_delay(
-                    reminder_minutes
-                )}."
-            ),
-            event_source=event_source,
-            event_id=event_id,
-            scheduled_for=scheduled_for,
-            status=Notification.Status.PENDING,
-        )
-
-    # ==========================================================
-    # SYNCHRONISATION D'UN ÉVÉNEMENT
-    # ==========================================================
-
-    @staticmethod
-    def sync_event_reminder(event):
-        """
-        Synchronise le rappel d'un événement.
-        """
-
-        event_id = event.get("id")
-        event_source = event.get("source")
-        user = event.get("user")
-
-        if not event_id or not event_source or not user:
             return None
 
-        reminder_enabled = event.get(
-            "reminder_enabled",
-            True,
-        )
+        return cls.create_event_reminder(event)
 
-        if not reminder_enabled:
+    # =========================================================
+    # ACTIVITIES
+    # =========================================================
 
-            Notification.objects.filter(
-                user=user,
-                event_id=event_id,
-                event_source=event_source,
-                status=Notification.Status.PENDING,
-            ).update(
-                status=Notification.Status.CANCELLED
-            )
-
-            return None
-
-        event_date = event.get("date")
-
-        if not event_date:
-            return None
-
-        start_time = event.get("start_time")
-
-        if not start_time:
-            start_time = datetime.min.time()
-
-        event_datetime = datetime.combine(
-            event_date,
-            start_time,
-        )
-
-        if timezone.is_naive(event_datetime):
-            event_datetime = timezone.make_aware(
-                event_datetime,
-                timezone.get_current_timezone(),
-            )
-
-        reminder_minutes = (
-            NotificationService
-            .get_smart_reminder_minutes(
-                event_datetime
-            )
-        )
-
-        if reminder_minutes is None:
-            return None
-
-        scheduled_for = (
-            event_datetime
-            - timedelta(
-                minutes=reminder_minutes
-            )
-        )
-
-        now = timezone.now()
-
-        if scheduled_for < now:
-            scheduled_for = now
-
-        existing_notifications = (
-            Notification.objects.filter(
-                user=user,
-                event_id=event_id,
-                event_source=event_source,
-            )
-            .exclude(
-                status=Notification.Status.CANCELLED
-            )
-            .order_by("id")
-        )
-
-        pending_notification = (
-            existing_notifications
-            .filter(
-                status=Notification.Status.PENDING
-            )
-            .first()
-        )
-
-        if pending_notification:
-
-            pending_notification.title = (
-                f"Rappel : "
-                f"{event.get('title', 'Événement')}"
-            )
-
-            pending_notification.message = (
-                f"L'événement « "
-                f"{event.get('title', 'Événement')} » "
-                f"commence dans "
-                f"{NotificationService.format_reminder_delay(
-                    reminder_minutes
-                )}."
-            )
-
-            pending_notification.scheduled_for = (
-                scheduled_for
-            )
-
-            pending_notification.save(
-                update_fields=[
-                    "title",
-                    "message",
-                    "scheduled_for",
-                ]
-            )
-
-            existing_notifications.filter(
-                status=Notification.Status.PENDING
-            ).exclude(
-                id=pending_notification.id
-            ).update(
-                status=Notification.Status.CANCELLED
-            )
-
-            return pending_notification
-
-        return Notification.objects.create(
-            user=user,
-            title=(
-                f"Rappel : "
-                f"{event.get('title', 'Événement')}"
-            ),
-            message=(
-                f"L'événement « "
-                f"{event.get('title', 'Événement')} » "
-                f"commence dans "
-                f"{NotificationService.format_reminder_delay(
-                    reminder_minutes
-                )}."
-            ),
-            event_source=event_source,
-            event_id=event_id,
-            scheduled_for=scheduled_for,
-            status=Notification.Status.PENDING,
-        )
-
-    # ==========================================================
-    # RAPPELS D'ACTIVITÉS
-    # ==========================================================
-
-    @staticmethod
-    def sync_activity_reminders(activity):
-        """
-        Synchronise les rappels d'une activité.
-
-        Notifications destinées à :
-
-        - l'organisateur
-        - tous les participants ACCEPTED
-        """
-
+    @classmethod
+    def sync_activity_reminders(cls, activity):
         if not activity:
             return []
 
-        # ------------------------------------------------------
-        # ACTIVITÉ ANNULÉE
-        # ------------------------------------------------------
+        if getattr(activity, "status", None) == "CANCELLED":
+            users = []
 
-        if activity.status == activity.Status.CANCELLED:
-
-            Notification.objects.filter(
-                event_source="ACTIVITY",
-                event_id=activity.id,
-                status=Notification.Status.PENDING,
-            ).update(
-                status=Notification.Status.CANCELLED
+            organizer = getattr(
+                activity,
+                "organizer",
+                None,
             )
 
+            if organizer:
+                users.append(organizer)
+
+            try:
+                participants = activity.participants.filter(
+                    status="ACCEPTED"
+                )
+
+                users.extend(
+                    participant.user
+                    for participant in participants
+                    if participant.user
+                )
+            except Exception:
+                pass
+
+            for user in users:
+                NotificationEngine.cancel(
+                    user=user,
+                    source=NotificationEngine.SOURCE_ACTIVITY,
+                    event_id=activity.id,
+                    event_code=f"ACTIVITY_{activity.id}",
+                )
+
             return []
 
-        # ------------------------------------------------------
-        # ACTIVITÉ PUBLIÉE
-        # ------------------------------------------------------
-
-        if activity.status != activity.Status.PUBLISHED:
+        if getattr(activity, "status", None) != "PUBLISHED":
             return []
 
-        # ------------------------------------------------------
-        # DATE
-        # ------------------------------------------------------
+        start_datetime = getattr(
+            activity,
+            "start_datetime",
+            None,
+        )
 
-        if not activity.start_datetime:
+        if not start_datetime:
             return []
-
-        # ------------------------------------------------------
-        # UTILISATEURS
-        # ------------------------------------------------------
 
         users = {}
 
-        # Organisateur
-        if activity.organizer_id:
-            users[
-                activity.organizer_id
-            ] = activity.organizer
-
-        # Participants ACCEPTED
-        participants = (
-            activity.participants
-            .filter(
-                status=ActivityParticipant.Status.ACCEPTED
-            )
-            .select_related("user")
+        organizer = getattr(
+            activity,
+            "organizer",
+            None,
         )
 
-        for participant in participants:
+        if organizer:
+            users[organizer.id] = organizer
 
-            if participant.user_id:
-                users[
-                    participant.user_id
-                ] = participant.user
+        try:
+            participants = activity.participants.filter(
+                status="ACCEPTED"
+            )
 
-        # ------------------------------------------------------
-        # RAPPELS
-        # ------------------------------------------------------
+            for participant in participants:
+                if participant.user:
+                    users[participant.user.id] = (
+                        participant.user
+                    )
+        except Exception:
+            pass
 
         notifications = []
 
         for user in users.values():
-
-            notification = (
-                NotificationService
-                .create_activity_reminder(
-                    activity=activity,
-                    user=user,
-                )
+            notification = cls.create_activity_reminder(
+                activity,
+                user,
             )
 
             if notification:
-                notifications.append(
-                    notification
-                )
+                notifications.append(notification)
 
         return notifications
 
-    # ==========================================================
-    # CRÉATION D'UN RAPPEL D'ACTIVITÉ
-    # ==========================================================
-
-    @staticmethod
+    @classmethod
     def create_activity_reminder(
+        cls,
         activity,
         user,
     ):
-        """
-        Crée automatiquement un rappel intelligent
-        pour une activité.
-
-        La création réelle de la Notification est déléguée
-        à NotificationEngine.
-
-        Aucun envoi Push n'est effectué ici.
-        """
-
         if not activity or not user:
             return None
 
-        # ------------------------------------------------------
-        # ANNULÉE
-        # ------------------------------------------------------
-
-        if activity.status == activity.Status.CANCELLED:
+        if not cls.reminders_enabled(user):
             return None
 
-        # ------------------------------------------------------
-        # NON PUBLIÉE
-        # ------------------------------------------------------
+        start_datetime = getattr(
+            activity,
+            "start_datetime",
+            None,
+        )
 
-        if activity.status != activity.Status.PUBLISHED:
+        if not start_datetime:
             return None
-
-        # ------------------------------------------------------
-        # DATE
-        # ------------------------------------------------------
-
-        event_datetime = activity.start_datetime
-
-        if not event_datetime:
-            return None
-
-        if timezone.is_naive(event_datetime):
-            event_datetime = timezone.make_aware(
-                event_datetime,
-                timezone.get_current_timezone(),
-            )
-
-        # ------------------------------------------------------
-        # PRÉFÉRENCES
-        # ------------------------------------------------------
-
-        if not NotificationService.reminders_enabled(user):
-            return None
-
-        # ------------------------------------------------------
-        # CALCUL INTELLIGENT
-        # ------------------------------------------------------
 
         reminder_minutes = (
-            NotificationService
-            .get_smart_reminder_minutes(
-                event_datetime
+            NotificationEngine.get_smart_reminder_minutes(
+                start_datetime
             )
         )
 
@@ -1000,82 +432,61 @@ class NotificationService:
             return None
 
         scheduled_for = (
-            event_datetime
-            - timedelta(
-                minutes=reminder_minutes
+            NotificationEngine.calculate_scheduled_for(
+                start_datetime,
+                reminder_minutes,
             )
         )
 
-        now = timezone.now()
+        if scheduled_for is None:
+            return None
 
-        # ------------------------------------------------------
-        # RAPPEL DÉJÀ PASSÉ
-        # ------------------------------------------------------
-
-        if scheduled_for < now:
-            scheduled_for = now
-
-        # ------------------------------------------------------
-        # CONTENU
-        # ------------------------------------------------------
-
-        title = f"Rappel : {activity.title}"
-
-        message = (
-            f"L'activité « "
-            f"{activity.title} » "
-            f"commence dans "
-            f"{NotificationService.format_reminder_delay(
-                reminder_minutes
-            )}."
+        title = (
+            getattr(
+                activity,
+                "title",
+                None,
+            )
+            or "Rappel d'activité"
         )
 
-        # ------------------------------------------------------
-        # IDENTITÉ DE LA NOTIFICATION
-        # ------------------------------------------------------
-
-        event_code = f"ACTIVITY_{activity.id}"
-
-        # ------------------------------------------------------
-        # NOTIFICATION ENGINE
-        # ------------------------------------------------------
+        message = (
+            f"L'activité « {title} » "
+            f"commence "
+            f"{NotificationEngine.format_reminder_delay(reminder_minutes)}."
+        )
 
         return NotificationEngine.schedule(
             user=user,
             source=NotificationEngine.SOURCE_ACTIVITY,
-            title=title,
+            title=f"📅 {title}",
             message=message,
             scheduled_for=scheduled_for,
             event_id=activity.id,
-            event_code=event_code,
+            event_code=f"ACTIVITY_{activity.id}",
         )
 
-    # ==========================================================
-    # RAPPEL QUOTIDIEN
-    # ==========================================================
+    # =========================================================
+    # DAILY REMINDER
+    # =========================================================
 
-    @staticmethod
-    def create_daily_reminder(user):
-        """
-        Crée le rappel quotidien.
-        """
-
+    @classmethod
+    def create_daily_reminder(cls, user):
         if not user:
             return None
 
-        preferences = (
-            UserPreferences.objects
-            .filter(user=user)
-            .first()
-        )
+        try:
+            preferences = user.preferences
+        except Exception:
+            return None
 
-        if (
-            preferences
-            and not preferences.daily_reminder_enabled
+        if not (
+            preferences.push_notifications_enabled
+            and preferences.daily_reminder_enabled
         ):
             return None
 
-        now = timezone.now()
+        now = timezone.localtime()
 
         scheduled_for = now.replace(
             hour=8,
@@ -1085,63 +496,32 @@ class NotificationService:
         )
 
         if scheduled_for <= now:
-            scheduled_for += timedelta(
-                days=1
-            )
+            scheduled_for += timedelta(days=1)
 
-        existing_notification = (
-            Notification.objects.filter(
-                user=user,
-                event_source="DAILY_REMINDER",
-                scheduled_for=scheduled_for,
-                status__in=[
-                    Notification.Status.PENDING,
-                    Notification.Status.SENT,
-                    Notification.Status.READ,
-                ],
-            )
-            .first()
-        )
-
-        if existing_notification:
-            return existing_notification
-
-        return Notification.objects.create(
+        return NotificationEngine.schedule(
             user=user,
-            title="Votre moment spirituel 🌅",
-            message=(
-                "Prenez un moment pour la prière, "
-                "la méditation ou la lecture "
-                "des Écrits sacrés."
-            ),
-            event_source="DAILY_REMINDER",
-            event_id=None,
+            source=NotificationEngine.SOURCE_DAILY_REMINDER,
+            title="🌅 Votre rappel quotidien",
+            message="Prenez quelques instants pour votre moment spirituel.",
             scheduled_for=scheduled_for,
-            status=Notification.Status.PENDING,
+            event_code=(
+                f"DAILY_REMINDER_"
+                f"{scheduled_for.date().isoformat()}"
+            ),
         )
 
-    # ==========================================================
-    # RAPPELS POUR PLUSIEURS ÉVÉNEMENTS
-    # ==========================================================
+    # =========================================================
+    # BATCH
+    # =========================================================
 
-    @staticmethod
-    def create_reminders_for_events(events):
-        """
-        Crée ou synchronise les rappels de plusieurs événements.
-        """
-
+    @classmethod
+    def create_reminders_for_events(cls, events):
         notifications = []
 
         for event in events:
-
-            notification = (
-                NotificationService
-                .create_event_reminder(event)
-            )
+            notification = cls.create_event_reminder(event)
 
             if notification:
-                notifications.append(
-                    notification
-                )
+                notifications.append(notification)
 
         return notifications

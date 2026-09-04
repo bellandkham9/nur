@@ -1,138 +1,218 @@
-from datetime import date
+from datetime import datetime, time
 
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 from apps.daily_quotes.models import DailyQuote
-from apps.notifications.models import Notification
-from apps.notifications.services.notification_engine import (
-    NotificationEngine,
-)
-
-
-User = get_user_model()
+from apps.notifications.services.notification_engine import NotificationEngine
 
 
 class QuoteNotificationService:
     """
-    Service métier des notifications des Paroles du jour.
+    Service métier responsable de la planification des Paroles du jour.
 
-    Responsabilités :
+    Architecture :
 
-        1. récupérer la citation du jour ;
-        2. déterminer les utilisateurs actifs ;
-        3. demander au NotificationEngine de programmer
-           une notification pour chaque utilisateur.
-
-    IMPORTANT :
-
-        Ce service NE crée plus directement de Notification.
-
-        Ce service NE fait plus d'envoi Web Push.
-
-    Flux :
-
-        DailyQuote
-             ↓
-        QuoteNotificationService
-             ↓
-        NotificationEngine
-             ↓
-        Notification(PENDING)
-             ↓
-        process_notifications
-             ↓
+        Cron Job.org
+              ↓
+        /api/notifications/process/
+              ↓
+        generate_due_quotes()
+              ↓
+        NotificationEngine.schedule()
+              ↓
+        NotificationProcessor
+              ↓
         WebPushService
-             ↓
-        Web Push
+
+    Ce service NE fait pas directement l'envoi Web Push.
+    Il crée uniquement les notifications PENDING à travers
+    NotificationEngine.
     """
+
+    # =========================================================
+    # CONFIGURATION
+    # =========================================================
+
+    MORNING_HOUR = 8
+    MORNING_MINUTE = 0
+
+    EVENING_HOUR = 20
+    EVENING_MINUTE = 0
 
     EVENT_SOURCE = NotificationEngine.SOURCE_DAILY_QUOTE
 
-    # ==========================================================
-    # PAROLE DU MATIN
-    # ==========================================================
+    # =========================================================
+    # GÉNÉRATION DEPUIS CRON
+    # =========================================================
 
     @classmethod
-    def send_morning_quote(
-        cls,
-        target_date: date | None = None,
-    ) -> int:
+    def generate_due_quotes(cls, now=None):
         """
-        Programme la Parole du matin.
+        Génère les notifications Daily Quote qui doivent exister
+        pour la journée courante.
 
-        Le nom de cette méthode est conservé pour rester
-        compatible avec le scheduler actuel.
+        Cette méthode est appelée par le endpoint Cron :
 
-        IMPORTANT :
-        elle ne fait plus directement de Push.
+            POST /api/notifications/process/
 
-        Retourne le nombre de notifications programmées.
+        Elle peut donc être exécutée toutes les minutes sans créer
+        de doublons grâce à event_code.
+        """
+
+        if now is None:
+            now = timezone.localtime()
+
+        else:
+            if timezone.is_naive(now):
+                now = timezone.make_aware(
+                    now,
+                    timezone.get_current_timezone(),
+                )
+
+            now = timezone.localtime(now)
+
+        current_date = now.date()
+
+        generated = {
+            "morning": 0,
+            "evening": 0,
+        }
+
+        # -----------------------------------------------------
+        # PAROLE DU MATIN
+        # -----------------------------------------------------
+
+        morning_time = time(
+            cls.MORNING_HOUR,
+            cls.MORNING_MINUTE,
+        )
+
+        if now.time() >= morning_time:
+
+            quote = cls.get_quote(
+                target_date=current_date,
+                moment=DailyQuote.Moment.MORNING,
+            )
+
+            if quote:
+                scheduled_for = cls._build_scheduled_datetime(
+                    current_date,
+                    cls.MORNING_HOUR,
+                    cls.MORNING_MINUTE,
+                )
+
+                generated["morning"] = cls._schedule_quote(
+                    quote=quote,
+                    scheduled_for=scheduled_for,
+                )
+
+        # -----------------------------------------------------
+        # PAROLE DU SOIR
+        # -----------------------------------------------------
+
+        evening_time = time(
+            cls.EVENING_HOUR,
+            cls.EVENING_MINUTE,
+        )
+
+        if now.time() >= evening_time:
+
+            quote = cls.get_quote(
+                target_date=current_date,
+                moment=DailyQuote.Moment.EVENING,
+            )
+
+            if quote:
+                scheduled_for = cls._build_scheduled_datetime(
+                    current_date,
+                    cls.EVENING_HOUR,
+                    cls.EVENING_MINUTE,
+                )
+
+                generated["evening"] = cls._schedule_quote(
+                    quote=quote,
+                    scheduled_for=scheduled_for,
+                )
+
+        return generated
+
+    # =========================================================
+    # COMPATIBILITÉ ANCIENNES TÂCHES
+    # =========================================================
+
+    @classmethod
+    def send_morning_quote(cls, target_date=None):
+        """
+        Compatibilité temporaire avec l'ancien système Celery.
+
+        Cette méthode ne fait pas d'envoi direct.
+        Elle planifie simplement la Parole du matin.
         """
 
         if target_date is None:
             target_date = timezone.localdate()
 
         quote = cls.get_quote(
+            target_date=target_date,
             moment=DailyQuote.Moment.MORNING,
-            target_date=target_date,
         )
 
-        if quote is None:
+        if not quote:
             return 0
 
-        return cls._schedule_quote(quote)
+        scheduled_for = cls._build_scheduled_datetime(
+            target_date,
+            cls.MORNING_HOUR,
+            cls.MORNING_MINUTE,
+        )
 
-    # ==========================================================
-    # PAROLE DU SOIR
-    # ==========================================================
+        return cls._schedule_quote(
+            quote=quote,
+            scheduled_for=scheduled_for,
+        )
 
     @classmethod
-    def send_evening_quote(
-        cls,
-        target_date: date | None = None,
-    ) -> int:
+    def send_evening_quote(cls, target_date=None):
         """
-        Programme la Parole du soir.
+        Compatibilité temporaire avec l'ancien système Celery.
 
-        Le nom de cette méthode est conservé pour rester
-        compatible avec le scheduler actuel.
-
-        IMPORTANT :
-        elle ne fait plus directement de Push.
-
-        Retourne le nombre de notifications programmées.
+        Cette méthode ne fait pas d'envoi direct.
+        Elle planifie simplement la Parole du soir.
         """
 
         if target_date is None:
             target_date = timezone.localdate()
 
         quote = cls.get_quote(
-            moment=DailyQuote.Moment.EVENING,
             target_date=target_date,
+            moment=DailyQuote.Moment.EVENING,
         )
 
-        if quote is None:
+        if not quote:
             return 0
 
-        return cls._schedule_quote(quote)
+        scheduled_for = cls._build_scheduled_datetime(
+            target_date,
+            cls.EVENING_HOUR,
+            cls.EVENING_MINUTE,
+        )
 
-    # ==========================================================
-    # RÉCUPÉRATION DE LA CITATION
-    # ==========================================================
+        return cls._schedule_quote(
+            quote=quote,
+            scheduled_for=scheduled_for,
+        )
 
-    @staticmethod
-    def get_quote(
-        moment: str,
-        target_date: date | None = None,
-    ) -> DailyQuote | None:
+    # =========================================================
+    # RECHERCHE DU QUOTE
+    # =========================================================
+
+    @classmethod
+    def get_quote(cls, target_date, moment):
         """
-        Retourne la citation active correspondant à une date
-        et à un moment précis.
+        Retourne la citation active correspondant à la date
+        et au moment demandé.
         """
-
-        if target_date is None:
-            target_date = timezone.localdate()
 
         return (
             DailyQuote.objects
@@ -142,68 +222,57 @@ class QuoteNotificationService:
                 is_active=True,
                 notification_enabled=True,
             )
+            .order_by("id")
             .first()
         )
 
-    # ==========================================================
-    # PROGRAMMATION DE LA CITATION
-    # ==========================================================
+    # =========================================================
+    # PLANIFICATION
+    # =========================================================
 
     @classmethod
-    def _schedule_quote(
-        cls,
-        quote: DailyQuote,
-    ) -> int:
+    def _schedule_quote(cls, quote, scheduled_for):
         """
-        Programme une notification DailyQuote pour chaque
-        utilisateur actif.
+        Crée ou met à jour les notifications pour tous les
+        utilisateurs actifs concernés.
 
-        Cette méthode ne fait aucun Web Push.
-
-        Le NotificationEngine :
-            - vérifie les préférences ;
-            - gère l'identité ;
-            - évite les doublons ;
-            - crée/met à jour la Notification ;
-            - laisse la notification en PENDING.
-
-        Le nombre retourné correspond au nombre de notifications
-        programmées ou déjà existantes et réutilisées.
+        IMPORTANT :
+            NotificationEngine.schedule() utilise le paramètre
+            `source`, et non `event_source`.
         """
 
         users = (
             User.objects
             .filter(is_active=True)
-            .distinct()
+            .select_related("preferences")
         )
 
-        # ------------------------------------------------------
-        # TITRE / MESSAGE
-        # ------------------------------------------------------
+        event_code = cls._build_event_code(quote)
 
-        title = cls._build_title(
-            quote.moment
-        )
+        title = cls._build_title(quote)
+        message = quote.text
 
-        message = quote.text.strip()
-
-        # ------------------------------------------------------
-        # IDENTITÉ MÉTIER
-        # ------------------------------------------------------
-
-        event_code = cls._build_event_code(
-            quote
-        )
-
-        # ------------------------------------------------------
-        # PROGRAMMATION
-        # ------------------------------------------------------
-
-        scheduled_for = timezone.now()
-
-        total_scheduled = 0
+        scheduled_count = 0
 
         for user in users:
+
+            try:
+                preferences = user.preferences
+            except Exception:
+                preferences = None
+
+            # Les notifications quotidiennes nécessitent
+            # explicitement les préférences utilisateur.
+            if preferences is None:
+                continue
+
+            # Interrupteur global
+            if not preferences.push_notifications_enabled:
+                continue
+
+            # Préférence spécifique aux rappels quotidiens
+            if not preferences.daily_reminder_enabled:
+                continue
 
             notification = NotificationEngine.schedule(
                 user=user,
@@ -213,32 +282,26 @@ class QuoteNotificationService:
                 scheduled_for=scheduled_for,
                 event_id=quote.id,
                 event_code=event_code,
+                update_pending=True,
             )
 
-            if notification is not None:
-                total_scheduled += 1
+            if notification:
+                scheduled_count += 1
 
-        return total_scheduled
+        return scheduled_count
 
-    # ==========================================================
-    # IDENTITÉ DAILY QUOTE
-    # ==========================================================
+    # =========================================================
+    # EVENT CODE
+    # =========================================================
 
-    @staticmethod
-    def _build_event_code(
-        quote: DailyQuote,
-    ) -> str:
+    @classmethod
+    def _build_event_code(cls, quote):
         """
-        Construit l'identité métier unique d'une DailyQuote.
+        Génère un identifiant stable et unique pour une citation.
 
         Exemple :
 
-            DAILY_QUOTE_42_2026-09-04_MORNING
-
-        Cela permet de distinguer :
-            - une citation ;
-            - sa date ;
-            - son moment.
+            DAILY_QUOTE_335_2026-09-04_MORNING
         """
 
         return (
@@ -248,48 +311,65 @@ class QuoteNotificationService:
             f"{quote.moment}"
         )
 
-    # ==========================================================
-    # CONSTRUCTION DU TITRE
-    # ==========================================================
+    # =========================================================
+    # DATE / HEURE
+    # =========================================================
+
+    @classmethod
+    def _build_scheduled_datetime(
+        cls,
+        target_date,
+        hour,
+        minute,
+    ):
+        """
+        Construit un datetime timezone-aware dans le fuseau
+        horaire Django configuré.
+
+        Exemple :
+
+            04/09/2026 08:00
+        """
+
+        naive_datetime = datetime.combine(
+            target_date,
+            time(hour, minute),
+        )
+
+        return timezone.make_aware(
+            naive_datetime,
+            timezone.get_current_timezone(),
+        )
+
+    # =========================================================
+    # TITRE
+    # =========================================================
 
     @staticmethod
-    def _build_title(
-        moment: str,
-    ) -> str:
+    def _build_title(quote):
         """
-        Retourne le titre de la notification.
+        Construit le titre de la notification.
         """
 
-        if moment == DailyQuote.Moment.MORNING:
+        if quote.moment == DailyQuote.Moment.MORNING:
             return "🌅 Parole du matin"
 
         return "🌙 Parole du soir"
 
-    # ==========================================================
-    # CONSTRUCTION DU PAYLOAD
-    # ==========================================================
+    # =========================================================
+    # PAYLOAD
+    # =========================================================
 
-    @staticmethod
-    def build_payload(
-        quote: DailyQuote,
-    ) -> dict:
+    @classmethod
+    def build_payload(cls, quote):
         """
-        Construit le payload logique d'une DailyQuote.
-
-        Cette méthode est conservée pour les tests/API.
-
-        Le véritable envoi Web Push reste de la responsabilité
-        du WebPushService.
+        Construit le payload utilisé si nécessaire par
+        le système de notification.
         """
-
-        title = QuoteNotificationService._build_title(
-            quote.moment
-        )
 
         return {
             "type": "DAILY_QUOTE",
-            "notification_type": "DAILY_QUOTE",
-            "title": title,
+            "title": cls._build_title(quote),
             "body": quote.text,
             "data": {
                 "url": "/daily-quotes",
