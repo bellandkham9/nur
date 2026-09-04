@@ -3,11 +3,11 @@ from datetime import timedelta
 from django.contrib.auth.models import User
 from django.utils import timezone
 
+from apps.bahai_calendar.services.events import get_all_events
 from apps.notifications.models import Notification
 from apps.notifications.services.notification_engine import (
     NotificationEngine,
 )
-
 
 class BahaiNotificationService:
     """
@@ -109,10 +109,7 @@ class BahaiNotificationService:
 
     @classmethod
     def generate_upcoming_notifications(cls):
-        from apps.notifications.services.bahai_calendar_service import (
-            get_all_events,
-        )
-
+        
         today = timezone.localdate()
         end_date = today + timedelta(days=cls.DAYS_AHEAD)
 
